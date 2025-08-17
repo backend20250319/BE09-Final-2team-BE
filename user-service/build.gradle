@@ -1,0 +1,80 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.4.8'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.momnect'
+version = '0.0.1-SNAPSHOT'
+description = 'user-service'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+ext {
+    set('springCloudVersion', "2024.0.2")
+}
+
+dependencies {
+    // jwt
+    implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
+
+    // ModelMapper - 객체 매핑(DTO ↔ Entity 변환 등)
+    implementation 'org.modelmapper:modelmapper:3.2.1'
+
+    // eureka-client
+    implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
+
+    // OpenFeign - 선언형 HTTP 클라이언트
+    // 인터페이스에 @FeignClient 선언만으로 다른 마이크로서비스 호출 가능
+    implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
+
+    // Spring Web - REST API, MVC, Tomcat 내장 서버 제공
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+
+    // security
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    testImplementation 'org.springframework.security:spring-security-test'
+
+    // mysql
+    runtimeOnly 'com.mysql:mysql-connector-j'
+
+    // jpa
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+
+    // lombok
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    // swagger
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.8")
+
+    // test
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+    }
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}

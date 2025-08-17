@@ -1,0 +1,78 @@
+server:
+  port: 8000
+
+spring:
+  profiles:
+    active: dev
+  application:
+    name: gateway-server
+  cloud:
+    gateway:
+      # cors 설정
+      globalcors:
+        add-to-simple-url-handler-mapping: true
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins: "http://localhost:3000"
+            allowedMethods:
+              - GET
+              - POST
+              - PATCH
+              - DELETE
+              - OPTIONS
+            allowedHeaders:
+              - "*"
+            allowCredentials: true
+      routes:
+        - id: user-service
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/api/v1/user-service/**
+          filters:
+            - RewritePath=/api/v1/user-service/(?<segment>.*), /$\{segment}
+        - id: product-service
+          uri: lb://PRODUCT-SERVICE
+          predicates:
+            - Path=/api/v1/product-service/**
+          filters:
+            - RewritePath=/api/v1/product-service/(?<segment>.*), /$\{segment}
+        - id: chat-service
+          uri: lb://CHAT-SERVICE
+          predicates:
+            - Path=/api/v1/chat-service/**
+          filters:
+            - RewritePath=/api/v1/chat-service/(?<segment>.*), /$\{segment}
+        - id: post-service
+          uri: lb://POST-SERVICE
+          predicates:
+            - Path=/api/v1/post-service/**
+          filters:
+            - RewritePath=/api/v1/post-service/(?<segment>.*), /$\{segment}
+        - id: review-service
+          uri: lb://REVIEW-SERVICE
+          predicates:
+            - Path=/api/v1/review-service/**
+          filters:
+            - RewritePath=/api/v1/review-service/(?<segment>.*), /$\{segment}
+eureka:
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      defaultZone: http://localhost:8761/eureka
+
+# swagger
+springdoc:
+  swagger-ui:
+    urls-primary-name: user-service
+    urls:
+      - name: user-service
+        url: /api/v1/user-service/v3/api-docs
+      - name: product-service
+        url: /api/v1/product-service/v3/api-docs
+      - name: chat-service
+        url: /api/v1/chat-service/v3/api-docs
+      - name: post-service
+        url: /api/v1/post-service/v3/api-docs
+      - name: review-service
+        url: /api/v1/review-service/v3/api-docs
