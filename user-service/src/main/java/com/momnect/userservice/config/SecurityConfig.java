@@ -1,8 +1,9 @@
 package com.momnect.userservice.config;
 
-import com.momnect.userservice.security.HeaderAuthenticationFilter;
+import com.momnect.userservice.security.CookieAuthenticationFilter;
 import com.momnect.userservice.security.RestAccessDeniedHandler;
 import com.momnect.userservice.security.RestAuthenticationEntryPoint;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -17,6 +18,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+/**
+ * Spring Security 설정
+ * HttpOnly 쿠키 기반 JWT 인증 적용
+ */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -25,6 +30,7 @@ public class SecurityConfig {
 
     private final RestAccessDeniedHandler restAccessDeniedHandler;
     private final RestAuthenticationEntryPoint restAuthenticationEntryPoint;
+    private final CookieAuthenticationFilter cookieAuthenticationFilter; // 🆕 변경!
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -45,16 +51,11 @@ public class SecurityConfig {
                                 .anyRequest()
                                 .authenticated()
                 )
-                .addFilterBefore(headerAuthenticationFilter(),
+                .addFilterBefore(cookieAuthenticationFilter, // 🆕 변경!
                         UsernamePasswordAuthenticationFilter.class)
         ;
 
         return http.build();
-    }
-
-    @Bean
-    public HeaderAuthenticationFilter headerAuthenticationFilter() {
-        return new HeaderAuthenticationFilter();
     }
 
     @Bean

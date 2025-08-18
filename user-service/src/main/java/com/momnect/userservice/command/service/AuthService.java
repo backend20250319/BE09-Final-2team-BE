@@ -5,6 +5,7 @@ import com.momnect.userservice.command.dto.SignupRequest;
 import com.momnect.userservice.command.dto.UserDTO;
 import com.momnect.userservice.command.entity.User;
 import com.momnect.userservice.command.repository.UserRepository;
+import com.momnect.userservice.exception.UserNotFoundException;
 import com.momnect.userservice.jwt.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -84,6 +85,37 @@ public class AuthService {
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
             throw new RuntimeException("이미 사용 중인 이메일입니다");
         }
+    }
+
+    /**
+     * 로그아웃 (RefreshToken 제거)
+     */
+    public void logout(Long userId) {
+        User user = userRepository.findById(userId).orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다"));
+
+        user.setRefreshToken(null);
+        user.setUpdatedBy(userId);
+        userRepository.save(user);
+    }
+
+    /**
+     * AccessToken 재발급
+     */
+    public String refreshToken(String refreshToken) {
+        // RefreshToken 유효성 검증
+        if (!jwtTokenProvider.validateToken(refreshToken)) {
+            throw new RuntimeException("유효하지 않은 Refresh token 입니다");
+        }
+
+        // DB에서 RefreshToken 확인
+        User user = userRepository.findByRefreshToken(refreshToken).orElseThrow(()-> new RuntimeException("Refresh token을 찾을 수 없습니다"));
+
+        if (user.getIsDeleted()) {
+            throw new UserNotFoundException("탈퇴한 사용자입니다");
+        }
+
+        // 새로운 AccessToken 생성
+        return jwtTokenProvider.createAccessToken(user);
     }
 
     /**
