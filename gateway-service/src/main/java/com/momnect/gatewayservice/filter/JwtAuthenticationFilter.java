@@ -2,6 +2,7 @@ package com.momnect.gatewayservice.filter;
 
 import com.momnect.gatewayservice.jwt.GatewayJwtTokenProvider;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
@@ -13,61 +14,94 @@ import reactor.core.publisher.Mono;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
     private final GatewayJwtTokenProvider jwtTokenProvider;
 
-    /*
-     * Reactive Gateway에서는 WebFlux 기술이 사용된다.
-     * 비동기/논블로킹 특징으로 대규모 어플리케이션에서 성능적인 부분이 좋다.
-     * */
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-        // 헤더에서 'Authorization' 값을 읽어온다.
+        String path = exchange.getRequest().getPath().toString();
+
+        // 인증 제외 경로들
+        if (isExcludedPath(path)) {
+            log.debug("🔓 인증 제외 경로: {}", path);
+            return chain.filter(exchange);
+        }
+
+        String token = null;
+
+        // Authorization 헤더에서 토큰 확인 (기존 방식)
         String authHeader = exchange.getRequest()
                 .getHeaders()
                 .getFirst("Authorization");
 
-        // 만약 토큰이 없거나, "Bearer "로 시작하지 않으면 다음 체인으로 요청을 전달한다.
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return chain.filter(exchange);
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            token = authHeader.substring(7);
+            log.debug("📤 헤더에서 토큰 추출: Bearer {}", token.substring(0, Math.min(20, token.length())) + "...");
+        } else {
+            // 2️⃣ 쿠키에서 토큰 확인 (HttpOnly 쿠키 지원)
+            token = extractTokenFromCookie(exchange, "accessToken");
+            if (token != null) {
+                log.debug("🍪 쿠키에서 토큰 추출: {}", token.substring(0, Math.min(20, token.length())) + "...");
+            }
         }
 
-        // "Bearer " 접두어를 제거하고 순수 JWT 토큰만 추출한다.
-        String token = authHeader.substring(7);
+        if (token == null) {
+            log.warn("❌ 토큰 없음 - 경로: {}", path);
+            exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+            return exchange.getResponse().setComplete();
+        }
 
-        // JWT 토큰의 유효성을 확인
         if (!jwtTokenProvider.validateToken(token)) {
-            // 유효하지 않다면 401상태코드를 응답
-            exchange.getResponse()
-                    .setStatusCode(HttpStatus.UNAUTHORIZED);
-            return exchange.getResponse()
-                    .setComplete();
+            log.warn("❌ 유효하지 않은 토큰 - 경로: {}", path);
+            exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+            return exchange.getResponse().setComplete();
         }
 
-        // 토큰에서 ID와 Role정보를 추출한다.
         Long userId = jwtTokenProvider.getUserIdFromJWT(token);
         String role = jwtTokenProvider.getRoleFromJWT(token);
 
-        // 기존 요청 객체를 복제(mutate)하고 헤더에 정보를 추가한다.
+        log.info("✅ 인증 성공 - userId: {}, role: {}, path: {}", userId, role, path);
+
         ServerHttpRequest mutateRequest = exchange.getRequest()
                 .mutate()
                 .header("X-User-Id", String.valueOf(userId))
                 .header("X-User-Role", role)
                 .build();
 
-        // 변경된 요청 객체를 포함하는 새로운 ServerWebExchange를 생성
         ServerWebExchange mutatedExchange = exchange.mutate()
                 .request(mutateRequest)
                 .build();
 
-        // 다음 필터로 요청 전달
         return chain.filter(mutatedExchange);
     }
 
-    /* GlobalFilter(전역필터)의 우선순위를 지정한다.
-     * 숫자가 적을수록 높은 우선순위를 가진다.
-     * */
+    /**
+     * 쿠키에서 토큰 추출 (HttpOnly 쿠키 지원)
+     */
+    private String extractTokenFromCookie(ServerWebExchange exchange, String cookieName) {
+        if (exchange.getRequest().getCookies().containsKey(cookieName)) {
+            String cookieValue = exchange.getRequest().getCookies().getFirst(cookieName).getValue();
+            log.debug("🍪 쿠키 [{}] 값 추출: {}", cookieName, cookieValue.substring(0, Math.min(20, cookieValue.length())) + "...");
+            return cookieValue;
+        }
+        log.debug("🍪 쿠키 [{}] 없음", cookieName);
+        return null;
+    }
+
+    /**
+     * 인증 제외 경로 판단
+     */
+    private boolean isExcludedPath(String path) {
+        return path.startsWith("/api/v1/user-service/auth/signup") ||
+                path.startsWith("/api/v1/user-service/auth/login") ||
+                path.startsWith("/api/v1/user-service/auth/refresh") ||
+                path.contains("/swagger-ui") ||
+                path.contains("/v3/api-docs") ||
+                path.contains("/actuator");
+    }
+
     @Override
     public int getOrder() {
         return -1;
