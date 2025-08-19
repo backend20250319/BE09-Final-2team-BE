@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.momnect.userservice.command.mapper.UserMapper;
 
 @Service
 @RequiredArgsConstructor
@@ -20,6 +21,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final JwtTokenProvider jwtTokenProvider;
     private final PasswordEncoder passwordEncoder;
+    private final UserMapper userMapper;
 
     /**
      * 로그인: loginId + password 검증 후 AccessToken, RefreshToken 발급
@@ -38,7 +40,7 @@ public class AuthService {
         user.setRefreshToken(refreshToken);
         userRepository.save(user);
 
-        UserDTO userDTO = convertToUserDTO(user);
+        UserDTO userDTO = userMapper.toUserDTO(user);
         return new LoginResponse(accessToken, refreshToken, userDTO);
     }
 
@@ -69,7 +71,7 @@ public class AuthService {
         user.setRefreshToken(refreshToken);
         userRepository.save(user);
 
-        UserDTO userDTO = convertToUserDTO(user);
+        UserDTO userDTO = userMapper.toUserDTO(user);
         return new LoginResponse(accessToken, refreshToken, userDTO);
     }
 
@@ -101,7 +103,7 @@ public class AuthService {
     /**
      * AccessToken 재발급
      */
-    public String refreshToken(String refreshToken) {
+    public String refreshAccessToken(String refreshToken) {
         // RefreshToken 유효성 검증
         if (!jwtTokenProvider.validateToken(refreshToken)) {
             throw new RuntimeException("유효하지 않은 Refresh token 입니다");
@@ -155,34 +157,6 @@ public class AuthService {
                 .isDeleted(false)
                 .createdBy(0L) // 임시값, 저장 후 실제 ID로 업데이트
                 .updatedBy(0L) // 임시값, 저장 후 실제 ID로 업데이트
-                .build();
-    }
-
-    /**
-     * User 엔티티를 UserDTO로 변환
-     */
-    private UserDTO convertToUserDTO(User user) {
-        return UserDTO.builder()
-                .id(user.getId())
-                .loginId(user.getLoginId())
-                .name(user.getName())
-                .role(user.getRole())
-                .oauthProvider(user.getOauthProvider())
-                .oauthId(user.getOauthId())
-                .email(user.getEmail())
-                .phoneNumber(user.getPhoneNumber())
-                .nickname(user.getNickname())
-                .profileImageUrl(user.getProfileImageUrl())
-                .address(user.getAddress())
-                .createdAt(user.getCreatedAt())
-                .updatedAt(user.getUpdatedAt())
-                .deletedAt(user.getDeletedAt())
-                .isDeleted(user.getIsDeleted())
-                .isTermsAgreed(user.getIsTermsAgreed())
-                .isPrivacyAgreed(user.getIsPrivacyAgreed())
-                .isWithdrawalAgreed(user.getIsWithdrawalAgreed())
-                .createdBy(user.getCreatedBy())
-                .updatedBy(user.getUpdatedBy())
                 .build();
     }
 }
