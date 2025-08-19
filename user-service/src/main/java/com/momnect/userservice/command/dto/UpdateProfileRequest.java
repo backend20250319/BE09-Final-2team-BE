@@ -14,10 +14,11 @@ public class UpdateProfileRequest {
     private final String nickname;
 
     @Email(message = "올바른 이메일 형식으로 입력해주세요")
-    @Size(max = 100,message = "이메일은 100자 이하로 입력해주세요")
+    @Size(max = 100, message = "이메일은 100자 이하로 입력해주세요")
     private final String email;
 
     @Pattern(regexp = "^010[0-9]{8}$", message = "휴대전화번호는 010으로 시작하는 11자리 숫자로 입력해주세요")
     private final String phoneNumber;
 
     private String profileImageUrl;
+}
