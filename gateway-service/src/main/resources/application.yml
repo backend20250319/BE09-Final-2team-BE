@@ -54,6 +54,11 @@ spring:
             - Path=/api/v1/review-service/**
           filters:
             - RewritePath=/api/v1/review-service/(?<segment>.*), /$\{segment}
+        # WebSocket 라우트 추가
+        - id: chat-ws
+          uri: lb:ws://CHAT-SERVICE
+          predicates:
+            - Path=/ws/**
 eureka:
   client:
     register-with-eureka: true
