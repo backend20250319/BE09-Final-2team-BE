@@ -23,18 +23,18 @@ public class HeaderAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
         FilterChain filterChain) throws ServletException, IOException {
 
-        String userId = request.getHeader("X-User-Id");
-        String role = request.getHeader("X-User-Role");
-
-        log.info("[HeaderAuthenticationFilter] userId : {}", userId);
-        log.info("[HeaderAuthenticationFilter] role : {}", role);
-
-        if (userId != null && role != null) {
-            PreAuthenticatedAuthenticationToken authentication =
-                new PreAuthenticatedAuthenticationToken(userId, null,
-                    List.of(new SimpleGrantedAuthority(role)));
-            SecurityContextHolder.getContext().setAuthentication(authentication);
-        }
+//        String userId = request.getHeader("X-User-Id");
+//        String role = request.getHeader("X-User-Role");
+//
+//        log.info("[HeaderAuthenticationFilter] userId : {}", userId);
+//        log.info("[HeaderAuthenticationFilter] role : {}", role);
+//
+//        if (userId != null && role != null) {
+//            PreAuthenticatedAuthenticationToken authentication =
+//                new PreAuthenticatedAuthenticationToken(userId, null,
+//                    List.of(new SimpleGrantedAuthority(role)));
+//            SecurityContextHolder.getContext().setAuthentication(authentication);
+//        }
         filterChain.doFilter(request, response);
     }
 }
