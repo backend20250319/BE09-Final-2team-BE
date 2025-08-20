@@ -30,6 +30,12 @@ public class AuthService {
         User user = userRepository.findByLoginId(loginId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
+        // 탈퇴한 사용자 확인
+        if (user.getIsDeleted()) {
+            throw new RuntimeException("탈퇴한 사용자입니다");
+        }
+
+        // 로그인 시 비밀번호 검증, 평문과 해시를 비교(복원X)
         if (!passwordEncoder.matches(password, user.getPassword())) {
             throw new RuntimeException("Invalid password");
         }

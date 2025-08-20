@@ -89,12 +89,11 @@ public class AuthController {
     }
 
     /**
-     * 리프레쉬
+     * 토큰 재발급 (AccessToken 갱신)
      *
-     * @param request 로그인 요청 DTO
-     * @return AccessToken + RefreshToken + UserDTO
+     * @param refreshToken HttpOnly 쿠키에서 추출한 RefreshToken
+     * @return 새로운 AccessToken이 설정된 응답 (쿠키)
      */
-
     @PostMapping("/refresh")
     public ResponseEntity<ApiResponse<Void>> refreshToken(@CookieValue(name = "refreshToken", required = false) String refreshToken) {
 
@@ -113,12 +112,11 @@ public class AuthController {
     }
 
     /**
-     * 쿠키 생성 헬퍼 메서드들
+     * AccessToken HttpOnly 쿠키 생성 헬퍼 메서드
      *
-     * @param request 로그인 요청 DTO
-     * @return AccessToken + RefreshToken + UserDTO
+     * @param accessToken JWT AccessToken 문자열
+     * @return HttpOnly AccessToken 쿠키
      */
-
     private ResponseCookie createAccessTokenCookie(String accessToken) {
         return ResponseCookie.from("accessToken", accessToken)
                 .httpOnly(true)                 // XSS 방지
