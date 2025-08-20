@@ -70,10 +70,12 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
                 .header("X-User-Role", role)
                 .build();
 
+        // 변경된 요청 객체를 포함하는 새로운 ServerWebExchange를 생성
         ServerWebExchange mutatedExchange = exchange.mutate()
                 .request(mutateRequest)
                 .build();
 
+        // 다음 필터로 요청 전달
         return chain.filter(mutatedExchange);
     }
 
