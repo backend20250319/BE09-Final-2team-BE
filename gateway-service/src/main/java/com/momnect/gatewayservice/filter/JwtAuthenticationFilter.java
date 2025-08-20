@@ -29,7 +29,7 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
             return chain.filter(exchange);
         }
 
-        String token = null;
+        String token;
 
         // Authorization 헤더에서 토큰 확인 (기존 방식)
         String authHeader = exchange.getRequest()
@@ -81,10 +81,14 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
      * 쿠키에서 토큰 추출 (HttpOnly 쿠키 지원)
      */
     private String extractTokenFromCookie(ServerWebExchange exchange, String cookieName) {
-        if (exchange.getRequest().getCookies().containsKey(cookieName)) {
-            String cookieValue = exchange.getRequest().getCookies().getFirst(cookieName).getValue();
-            log.debug("🍪 쿠키 [{}] 값 추출: {}", cookieName, cookieValue.substring(0, Math.min(20, cookieValue.length())) + "...");
-            return cookieValue;
+        var cookies = exchange.getRequest().getCookies().get(cookieName);
+        if (cookies != null && !cookies.isEmpty()) {
+            String cookieValue = cookies.get(0).getValue();
+            if (!cookieValue.trim().isEmpty()) {  // trim()으로 공백도 제거
+                log.debug("🍪 쿠키 [{}] 값 추출: {}", cookieName,
+                        cookieValue.substring(0, Math.min(20, cookieValue.length())) + "...");
+                return cookieValue;
+            }
         }
         log.debug("🍪 쿠키 [{}] 없음", cookieName);
         return null;
