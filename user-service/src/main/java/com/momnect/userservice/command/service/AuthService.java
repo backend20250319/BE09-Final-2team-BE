@@ -5,20 +5,23 @@ import com.momnect.userservice.command.dto.SignupRequest;
 import com.momnect.userservice.command.dto.UserDTO;
 import com.momnect.userservice.command.entity.User;
 import com.momnect.userservice.command.repository.UserRepository;
+import com.momnect.userservice.exception.UserNotFoundException;
 import com.momnect.userservice.jwt.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
-import org.modelmapper.ModelMapper;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import com.momnect.userservice.command.mapper.UserMapper;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class AuthService {
 
     private final UserRepository userRepository;
     private final JwtTokenProvider jwtTokenProvider;
     private final PasswordEncoder passwordEncoder;
-    private final ModelMapper modelMapper;
+    private final UserMapper userMapper;
 
     /**
      * 로그인: loginId + password 검증 후 AccessToken, RefreshToken 발급
@@ -27,6 +30,12 @@ public class AuthService {
         User user = userRepository.findByLoginId(loginId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
+        // 탈퇴한 사용자 확인
+        if (user.getIsDeleted()) {
+            throw new RuntimeException("탈퇴한 사용자입니다");
+        }
+
+        // 로그인 시 비밀번호 검증, 평문과 해시를 비교(복원X)
         if (!passwordEncoder.matches(password, user.getPassword())) {
             throw new RuntimeException("Invalid password");
         }
@@ -37,63 +46,28 @@ public class AuthService {
         user.setRefreshToken(refreshToken);
         userRepository.save(user);
 
-        // UserDTO 직접 생성
-        UserDTO userDTO = UserDTO.builder()
-                .id(user.getId())
-                .loginId(user.getLoginId())
-                .name(user.getName())
-                .role(user.getRole())
-                .oauthProvider(user.getOauthProvider())
-                .email(user.getEmail())
-                .phoneNumber(user.getPhoneNumber())
-                .nickname(user.getNickname())
-                .profileImageUrl(user.getProfileImageUrl())
-                .address(user.getAddress())
-                .createdAt(user.getCreatedAt())
-                .updatedAt(user.getUpdatedAt())
-                .deletedAt(user.getDeletedAt())
-                .isDeleted(user.getIsDeleted())
-                .deletionReason(user.getDeletionReason())
-                .isTermsAgreed(user.getIsTermsAgreed())
-                .isPrivacyAgreed(user.getIsPrivacyAgreed())
-                .isWithdrawalAgreed(user.getIsWithdrawalAgreed())
-                .createdBy(user.getCreatedBy())
-                .updatedBy(user.getUpdatedBy())
-                .build();
-
+        UserDTO userDTO = userMapper.toUserDTO(user);
         return new LoginResponse(accessToken, refreshToken, userDTO);
-    }
-
-    /**
-     * RefreshToken 기반 AccessToken 재발급
-     */
-    public String reissueAccessToken(String refreshToken) {
-        // DB에서 해당 RefreshToken 존재 여부 확인
-        User user = userRepository.findByRefreshToken(refreshToken)
-                .orElseThrow(() -> new RuntimeException("Invalid Refresh Token"));
-
-        return jwtTokenProvider.reissueAccessToken(refreshToken);
     }
 
     /**
      * 회원가입
      */
     public LoginResponse signup(SignupRequest request) {
-        // 중복 loginId 체크
-        if (userRepository.findByLoginId(request.getLoginId()).isPresent()) {
-            throw new RuntimeException("LoginId already exists");
-        }
+        // 중복 체크
+        validateDuplicateUser(request);
 
-        // User 엔티티 생성 및 저장
-        User user = User.builder()
-                .loginId(request.getLoginId())
-                .password(passwordEncoder.encode(request.getPassword()))
-                .name(request.getName())
-                .role(request.getRole())
-                .oauthProvider(request.getOauthProvider())
-                .build();
+        // 약관 동의 체크
+        validateTermsAgreement(request);
 
-        userRepository.save(user);
+        // User 엔티티 생성
+        User user = createUserFromRequest(request);
+
+        // 저장 후 생성자/수정자 ID 업데이트
+        user = userRepository.save(user);
+        user.setCreatedBy(user.getId());
+        user.setUpdatedBy(user.getId());
+        user = userRepository.save(user);
 
         // 토큰 발급
         String accessToken = jwtTokenProvider.createAccessToken(user);
@@ -103,31 +77,92 @@ public class AuthService {
         user.setRefreshToken(refreshToken);
         userRepository.save(user);
 
-        // UserDTO 직접 생성
-        UserDTO userDTO = UserDTO.builder()
-                .id(user.getId())
-                .loginId(user.getLoginId())
-                .name(user.getName())
-                .role(user.getRole())
-                .oauthProvider(user.getOauthProvider())
-                .email(user.getEmail())
-                .phoneNumber(user.getPhoneNumber())
-                .nickname(user.getNickname())
-                .profileImageUrl(user.getProfileImageUrl())
-                .address(user.getAddress())
-                .createdAt(user.getCreatedAt())
-                .updatedAt(user.getUpdatedAt())
-                .deletedAt(user.getDeletedAt())
-                .isDeleted(user.getIsDeleted())
-                .deletionReason(user.getDeletionReason())
-                .isTermsAgreed(user.getIsTermsAgreed())
-                .isPrivacyAgreed(user.getIsPrivacyAgreed())
-                .isWithdrawalAgreed(user.getIsWithdrawalAgreed())
-                .createdBy(user.getCreatedBy())
-                .updatedBy(user.getUpdatedBy())
-                .build();
-
+        UserDTO userDTO = userMapper.toUserDTO(user);
         return new LoginResponse(accessToken, refreshToken, userDTO);
     }
 
+    /**
+     * 중복 사용자 검증
+     */
+    private void validateDuplicateUser(SignupRequest request) {
+        if (userRepository.findByLoginId(request.getLoginId()).isPresent()) {
+            throw new RuntimeException("이미 사용 중인 로그인 ID입니다");
+        }
+
+        // 이메일 중복 체크 추가
+        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+            throw new RuntimeException("이미 사용 중인 이메일입니다");
+        }
+    }
+
+    /**
+     * 로그아웃 (RefreshToken 제거)
+     */
+    public void logout(Long userId) {
+        User user = userRepository.findById(userId).orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다"));
+
+        user.setRefreshToken(null);
+        user.setUpdatedBy(userId);
+        userRepository.save(user);
+    }
+
+    /**
+     * AccessToken 재발급
+     */
+    public String refreshAccessToken(String refreshToken) {
+        // RefreshToken 유효성 검증
+        if (!jwtTokenProvider.validateToken(refreshToken)) {
+            throw new RuntimeException("유효하지 않은 Refresh token 입니다");
+        }
+
+        // DB에서 RefreshToken 확인
+        User user = userRepository.findByRefreshToken(refreshToken).orElseThrow(()-> new RuntimeException("Refresh token을 찾을 수 없습니다"));
+
+        if (user.getIsDeleted()) {
+            throw new UserNotFoundException("탈퇴한 사용자입니다");
+        }
+
+        // 새로운 AccessToken 생성
+        return jwtTokenProvider.createAccessToken(user);
+    }
+
+    /**
+     * 약관 동의 검증
+     */
+    private void validateTermsAgreement(SignupRequest request) {
+        if (!request.getIsTermsAgreed()) {
+            throw new RuntimeException("이용약관 동의는 필수입니다");
+        }
+        if (!request.getIsPrivacyAgreed()) {
+            throw new RuntimeException("개인정보처리방침 동의는 필수입니다");
+        }
+    }
+
+    /**
+     * SignupRequest에서 User 엔티티 생성
+     */
+    private User createUserFromRequest(SignupRequest request) {
+        // 휴대폰번호 정제 (하이픈 제거)
+        String cleanPhoneNumber = request.getPhoneNumber().replaceAll("[^0-9]", "");
+
+        return User.builder()
+                .loginId(request.getLoginId())
+                .password(request.getPassword() != null ?
+                        passwordEncoder.encode(request.getPassword()) : null)
+                .name(request.getName())
+                .email(request.getEmail())
+                .phoneNumber(cleanPhoneNumber)
+                .oauthProvider(request.getOauthProvider())
+                .oauthId(request.getOauthId())
+                .nickname(request.getNickname())
+                .address(request.getAddress())
+                .profileImageUrl(request.getProfileImageUrl())
+                .role(request.getRole() != null ? request.getRole() : "USER")
+                .isTermsAgreed(request.getIsTermsAgreed())
+                .isPrivacyAgreed(request.getIsPrivacyAgreed())
+                .isDeleted(false)
+                .createdBy(0L) // 임시값, 저장 후 실제 ID로 업데이트
+                .updatedBy(0L) // 임시값, 저장 후 실제 ID로 업데이트
+                .build();
+    }
 }
