@@ -21,8 +21,14 @@ public class WebSocketMessageController {
     @MessageMapping("/chat.send")
     public void onSend(@Payload WsSendMessage payload) {
         // 1) 영속화 + 응답 변환 (REST와 동일 로직 재사용)
-        var saved = chatMessageService.send(payload.getRoomId(),
-                new ChatMessageSendRequest(payload.getSenderId(), payload.getMessage()));
+        var saved = chatMessageService.send(
+                payload.getRoomId(),
+                ChatMessageSendRequest.builder()
+                        .senderId(payload.getSenderId())
+                        .senderName(payload.getSenderName())
+                        .message(payload.getMessage())
+                        .build()
+        );
 
         // 2) 방 구독자에게 브로드캐스트 (구독 주소: /topic/rooms.{roomId})
         String roomTopic = "/topic/rooms." + payload.getRoomId();
