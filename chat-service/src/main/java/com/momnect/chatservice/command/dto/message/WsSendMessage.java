@@ -6,5 +6,6 @@ import lombok.*;
 public class WsSendMessage {
     private Long roomId;
     private Long senderId;
+    private String senderName;
     private String message;
 }
