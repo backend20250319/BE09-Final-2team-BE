@@ -23,6 +23,7 @@ ext {
 }
 
 dependencies {
+
     // ModelMapper - 객체 매핑(DTO ↔ Entity 변환 등)
     implementation 'org.modelmapper:modelmapper:3.2.1'
 
@@ -56,6 +57,11 @@ dependencies {
     // test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // WebClient를 사용하기 위한 Spring Webflux 의존성 추가
+    // 이 의존성은 비동기/논블로킹 통신을 가능하게 합니다.
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+
 }
 
 dependencyManagement {

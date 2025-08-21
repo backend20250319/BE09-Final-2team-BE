@@ -1,13 +1,14 @@
-package com.momnect.chatservice.command.dto;
+package com.momnect.reviewservice.command.dto;
 
 import lombok.Builder;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
 
+// FeignClient를 통해 Product Service로부터 받아올 사용자 정보 DTO
 @Getter
 @Builder
-public class ExampleDTO {
+public class ReviewDTO {
 
     private Long id;
     private String oauthProvider;
