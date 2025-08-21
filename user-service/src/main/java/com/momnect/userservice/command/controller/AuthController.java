@@ -32,7 +32,7 @@ public class AuthController {
      * @return 로그인 후 발급되는 AccessToken + RefreshToken + UserDTO
      */
     @PostMapping("/signup")
-    public ResponseEntity<ApiResponse<UserDTO>> signup(@Valid @RequestBody SignupRequest request) {
+    public ResponseEntity<ApiResponse<LoginResponse>> signup(@Valid @RequestBody SignupRequest request) {
         LoginResponse loginResponse = authService.signup(request);
 
         // HttpOnly 쿠키 설정
@@ -42,7 +42,7 @@ public class AuthController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, accessTokenCookie.toString())
                 .header(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString())
-                .body(ApiResponse.success(loginResponse.getUser()));
+                .body(ApiResponse.success(loginResponse)); // 전체 LoginResponse 반환 (토큰 포함)
     }
 
     /**
@@ -52,7 +52,7 @@ public class AuthController {
      * @return AccessToken + RefreshToken + UserDTO
      */
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<UserDTO>> login(@Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<ApiResponse<LoginResponse>> login(@Valid @RequestBody LoginRequest request) {
         LoginResponse loginResponse = authService.login(request.getLoginId(), request.getPassword());
 
         // HttpOnly 쿠키 설정
@@ -62,7 +62,7 @@ public class AuthController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, accessTokenCookie.toString())
                 .header(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString())
-                .body(ApiResponse.success(loginResponse.getUser()));
+                .body(ApiResponse.success(loginResponse)); // 전체 LoginResponse 반환 (토큰 포함)
     }
 
     /**
