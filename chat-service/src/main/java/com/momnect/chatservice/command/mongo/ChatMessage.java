@@ -22,8 +22,8 @@ public class ChatMessage {
     @Field("chat_room_id")
     private Long chatRoomId;
 
-    @Field("sender_id")
-    private Long senderId;
+    @Field("sender_info")
+    private SenderInfo senderInfo;
 
     @Field("message")
     private String message;
@@ -34,3 +34,4 @@ public class ChatMessage {
     @Field("is_read")
     private boolean isRead;
 }
+
