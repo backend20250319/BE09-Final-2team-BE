@@ -25,6 +25,13 @@ spring:
               - "*"
             allowCredentials: true
       routes:
+        # WebSocket 업그레이드 라우트 (웹소켓 전용)
+        - id: chat-ws
+          uri: lb:ws://CHAT-SERVICE
+          predicates:
+            - Path=/api/v1/chat-service/ws/**
+          filters:
+            - RewritePath=/api/v1/chat-service/ws/(?<segment>.*), /ws/${segment}
         - id: user-service-auth
           uri: lb://USER-SERVICE
           predicates:
@@ -61,11 +68,8 @@ spring:
             - Path=/api/v1/review-service/**
           filters:
             - RewritePath=/api/v1/review-service/(?<segment>.*), /$\{segment}
-        # WebSocket 라우트 추가
-        - id: chat-ws
-          uri: lb:ws://CHAT-SERVICE
-          predicates:
-            - Path=/ws/**
+
+
 eureka:
   client:
     register-with-eureka: true
