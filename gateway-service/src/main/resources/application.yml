@@ -17,6 +17,7 @@ spring:
             allowedMethods:
               - GET
               - POST
+              - PUT
               - PATCH
               - DELETE
               - OPTIONS
@@ -24,10 +25,16 @@ spring:
               - "*"
             allowCredentials: true
       routes:
-        - id: user-service
+        - id: user-service-auth
           uri: lb://USER-SERVICE
           predicates:
-            - Path=/api/v1/user-service/**
+            - Path=/api/v1/user-service/auth/**
+          filters:
+            - RewritePath=/api/v1/user-service/(?<segment>.*), /$\{segment}
+        - id: user-service-users
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/api/v1/user-service/users/**
           filters:
             - RewritePath=/api/v1/user-service/(?<segment>.*), /$\{segment}
         - id: product-service
