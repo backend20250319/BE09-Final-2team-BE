@@ -18,7 +18,7 @@ public class ChatRoom {
     private Long id;
 
     // 상품 ID (외부 참조)
-    @Column(name = "product_it", nullable = false) // DB 오타 product_it
+    @Column(name = "product_id", nullable = false)
     private Long productId;
 
     // 구매자
