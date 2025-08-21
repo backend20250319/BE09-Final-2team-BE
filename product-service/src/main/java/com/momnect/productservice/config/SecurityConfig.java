@@ -44,7 +44,9 @@ public class SecurityConfig {
                                         "/v3/api-docs/**",
                                         "/swagger-resources/**",
                                         "/areas/load",
-                                        "/areas/search"
+                                        "/areas/search",
+                                        "/categories/init",
+                                        "/categories/tree"
                                 )
                                 .permitAll()
                                 .anyRequest()
