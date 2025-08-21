@@ -14,7 +14,7 @@ eureka:
 
 spring:
   profiles:
-    active: dev
+    active: dev,openai
   application:
     name: review-service
   jpa:
