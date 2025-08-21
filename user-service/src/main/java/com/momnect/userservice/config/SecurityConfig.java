@@ -30,7 +30,7 @@ public class SecurityConfig {
 
     private final RestAccessDeniedHandler restAccessDeniedHandler;
     private final RestAuthenticationEntryPoint restAuthenticationEntryPoint;
-    private final CookieAuthenticationFilter cookieAuthenticationFilter; // 🆕 변경!
+    private final CookieAuthenticationFilter cookieAuthenticationFilter;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -45,13 +45,15 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth ->
                         auth.requestMatchers(HttpMethod.POST, "/auth/signup", "/auth/login")
                                 .permitAll()
+                                .requestMatchers(HttpMethod.GET, "/users/check")
+                                .permitAll()
                                 .requestMatchers(HttpMethod.GET, "/swagger-ui/**", "/v3/api-docs/**",
                                         "/swagger-resources/**")
                                 .permitAll()
                                 .anyRequest()
                                 .authenticated()
                 )
-                .addFilterBefore(cookieAuthenticationFilter, // 🆕 변경!
+                .addFilterBefore(cookieAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class)
         ;
 
