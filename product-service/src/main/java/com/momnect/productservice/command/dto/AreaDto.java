@@ -6,6 +6,6 @@ import lombok.Getter;
 @Getter
 @Builder
 public class AreaDto {
-    private Integer areaId;
+    private Integer id;
     private String fullName;
 }
