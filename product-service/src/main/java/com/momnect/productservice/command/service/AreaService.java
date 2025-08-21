@@ -32,7 +32,7 @@ public class AreaService {
         for (Area area : emdAreas) {
             String fullName = buildFullName(area);
             result.add(AreaDto.builder()
-                    .areaId(area.getId())
+                    .id(area.getId())
                     .fullName(fullName)
                     .build());
         }
