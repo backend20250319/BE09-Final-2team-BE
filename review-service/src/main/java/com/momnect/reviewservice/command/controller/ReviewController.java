@@ -28,7 +28,6 @@ public class ReviewController {
 
     @GetMapping("/status")
     public ResponseEntity<ApiResponse<ReviewStatsResponse>> getReviewStats() {
-        // ReviewService의 메소드 이름과 일치하도록 getReviewStats()로 호출
         ReviewStatsResponse stats = reviewService.getReviewStats();
         return ResponseEntity.ok(ApiResponse.success(stats));
     }
@@ -80,4 +79,8 @@ public class ReviewController {
                     .body(ApiResponse.failure("REVIEW_NOT_FOUND", e.getMessage()));
         }
     }
+//    @RequestMapping(value = "/**", method = RequestMethod.OPTIONS)
+//    public ResponseEntity<?> handleOptions() {
+//        return ResponseEntity.ok().build();
+//    }
 }

@@ -22,7 +22,7 @@ public class Review {
     private float rating;
     private String content;
 
-//    @Transi
+
     private String summary;
     private Boolean kind;          // 친절했나요?
     private Boolean promise;       // 약속 잘 지켰나요?
