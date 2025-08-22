@@ -2,6 +2,7 @@ package com.momnect.productservice.command.controller;
 
 import com.momnect.productservice.command.dto.product.ProductDTO;
 import com.momnect.productservice.command.dto.product.ProductRequest;
+import com.momnect.productservice.command.dto.product.ProductSummaryDto;
 import com.momnect.productservice.command.service.ProductService;
 import com.momnect.productservice.common.ApiResponse;
 import lombok.RequiredArgsConstructor;
@@ -9,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -17,6 +19,23 @@ import java.util.Map;
 public class ProductController {
 
     private final ProductService productService;
+
+    /***
+     * 상품 요약 리스트 조회 API
+     * ex) /products/summary?ids=1,2,3
+     *
+     * @param productIds 조회할 상품 ID 리스트
+     * @param userId 요청한 사용자 ID (로그인하지 않은 경우 null)
+     * @return 상품 요약 정보 리스트
+     */
+    @GetMapping("/summary")
+    public ResponseEntity<ApiResponse<List<ProductSummaryDto>>> getProductSummaries(
+            @RequestParam List<Long> productIds,
+            @AuthenticationPrincipal Long userId) {
+
+        List<ProductSummaryDto> summaries = productService.getProductsByIds(productIds, userId);
+        return ResponseEntity.ok(ApiResponse.success(summaries));
+    }
 
     /***
      * 상품 상세 조회 API
