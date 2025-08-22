@@ -35,7 +35,7 @@ public class ChatRoomService {
         if (existed != null) return toResponse(existed);
 
         ChatRoom room = ChatRoom.builder()
-                .productId(req.getProductId())   // 엔티티에서 @Column(name="product_it")
+                .productId(req.getProductId())
                 .buyerId(req.getBuyerId())
                 .sellerId(req.getSellerId())
                 .createdAt(LocalDateTime.now())
