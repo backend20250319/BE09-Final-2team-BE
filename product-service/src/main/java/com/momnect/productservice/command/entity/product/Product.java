@@ -1,6 +1,9 @@
-package com.momnect.productservice.command.entity;
+package com.momnect.productservice.command.entity.product;
 
-import com.momnect.productservice.command.dto.ProductRequest;
+import com.momnect.productservice.command.dto.product.ProductRequest;
+import com.momnect.productservice.command.entity.image.ProductImage;
+import com.momnect.productservice.command.entity.area.ProductTradeArea;
+import com.momnect.productservice.command.entity.hashtag.ProductHashtag;
 import jakarta.persistence.*;
 import lombok.*;
 

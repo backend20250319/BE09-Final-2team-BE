@@ -1,4 +1,4 @@
-package com.momnect.productservice.command.entity;
+package com.momnect.productservice.command.entity.product;
 
 import jakarta.persistence.*;
 import lombok.*;

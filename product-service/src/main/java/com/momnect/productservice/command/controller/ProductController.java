@@ -1,7 +1,7 @@
 package com.momnect.productservice.command.controller;
 
-import com.momnect.productservice.command.dto.ProductDTO;
-import com.momnect.productservice.command.dto.ProductRequest;
+import com.momnect.productservice.command.dto.product.ProductDTO;
+import com.momnect.productservice.command.dto.product.ProductRequest;
 import com.momnect.productservice.command.service.ProductService;
 import com.momnect.productservice.common.ApiResponse;
 import lombok.RequiredArgsConstructor;

@@ -1,8 +1,15 @@
 package com.momnect.productservice.command.service;
 
 import com.momnect.productservice.command.client.FileClient;
-import com.momnect.productservice.command.dto.*;
-import com.momnect.productservice.command.entity.*;
+import com.momnect.productservice.command.document.ProductDocument;
+import com.momnect.productservice.command.client.dto.ImageFileDTO;
+import com.momnect.productservice.command.dto.image.ProductImageDTO;
+import com.momnect.productservice.command.dto.product.ProductDTO;
+import com.momnect.productservice.command.dto.product.ProductRequest;
+import com.momnect.productservice.command.entity.image.ProductImage;
+import com.momnect.productservice.command.entity.image.ProductImageId;
+import com.momnect.productservice.command.entity.product.Product;
+import com.momnect.productservice.command.entity.product.ProductCategory;
 import com.momnect.productservice.command.repository.ProductCategoryRepository;
 import com.momnect.productservice.command.repository.ProductImageRepository;
 import com.momnect.productservice.command.repository.ProductRepository;

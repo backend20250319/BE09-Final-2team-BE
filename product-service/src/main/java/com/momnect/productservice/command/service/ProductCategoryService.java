@@ -1,7 +1,7 @@
 package com.momnect.productservice.command.service;
 
-import com.momnect.productservice.command.dto.ProductCategoryDto;
-import com.momnect.productservice.command.entity.ProductCategory;
+import com.momnect.productservice.command.dto.product.ProductCategoryDto;
+import com.momnect.productservice.command.entity.product.ProductCategory;
 import com.momnect.productservice.command.repository.ProductCategoryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;

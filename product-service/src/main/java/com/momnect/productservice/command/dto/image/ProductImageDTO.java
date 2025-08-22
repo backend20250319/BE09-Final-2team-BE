@@ -1,6 +1,6 @@
-package com.momnect.productservice.command.dto;
+package com.momnect.productservice.command.dto.image;
 
-import com.momnect.productservice.command.entity.ProductImage;
+import com.momnect.productservice.command.entity.image.ProductImage;
 import lombok.Builder;
 import lombok.Getter;
 

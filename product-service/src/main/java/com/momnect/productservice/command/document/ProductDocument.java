@@ -1,6 +1,6 @@
-package com.momnect.productservice.command.dto;
+package com.momnect.productservice.command.document;
 
-import com.momnect.productservice.command.entity.Product;
+import com.momnect.productservice.command.entity.product.Product;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.elasticsearch.annotations.Document;
 import lombok.Builder;

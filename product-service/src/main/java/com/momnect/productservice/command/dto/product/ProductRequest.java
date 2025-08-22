@@ -1,4 +1,4 @@
-package com.momnect.productservice.command.dto;
+package com.momnect.productservice.command.dto.product;
 
 import lombok.Getter;
 

@@ -1,5 +1,6 @@
-package com.momnect.productservice.command.entity;
+package com.momnect.productservice.command.entity.image;
 
+import com.momnect.productservice.command.entity.product.Product;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

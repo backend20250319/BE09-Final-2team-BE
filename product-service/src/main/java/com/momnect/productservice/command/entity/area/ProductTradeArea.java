@@ -1,26 +1,29 @@
-package com.momnect.productservice.command.entity;
+package com.momnect.productservice.command.entity.area;
 
+import com.momnect.productservice.command.entity.product.Product;
 import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "tbl_product_hashtag")
+@Table(name = "tbl_product_trade_area")
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ProductHashtag {
+public class ProductTradeArea {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // Product와 ManyToOne 관계
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
+    // Area와 ManyToOne 관계
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "hashtag_id", nullable = false)
-    private Hashtag hashtag;
+    @JoinColumn(name = "area_id", nullable = false)
+    private Area area;
 }
 

@@ -1,6 +1,6 @@
 package com.momnect.productservice.command.controller;
 
-import com.momnect.productservice.command.dto.AreaDto;
+import com.momnect.productservice.command.dto.area.AreaDto;
 import com.momnect.productservice.command.service.AreaService;
 import com.momnect.productservice.common.ApiResponse;
 import lombok.RequiredArgsConstructor;

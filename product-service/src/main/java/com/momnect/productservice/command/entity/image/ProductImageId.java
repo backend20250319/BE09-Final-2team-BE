@@ -1,4 +1,4 @@
-package com.momnect.productservice.command.entity;
+package com.momnect.productservice.command.entity.image;
 
 import jakarta.persistence.Embeddable;
 import lombok.AllArgsConstructor;

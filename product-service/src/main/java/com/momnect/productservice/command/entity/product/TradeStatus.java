@@ -1,4 +1,4 @@
-package com.momnect.productservice.command.entity;
+package com.momnect.productservice.command.entity.product;
 
 public enum TradeStatus {
     ON_SALE,    // 판매중

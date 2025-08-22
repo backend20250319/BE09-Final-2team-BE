@@ -1,6 +1,6 @@
 package com.momnect.productservice.command.client;
 
-import com.momnect.productservice.command.dto.ImageFileDTO;
+import com.momnect.productservice.command.client.dto.ImageFileDTO;
 import com.momnect.productservice.common.ApiResponse;
 import com.momnect.productservice.config.FeignClientConfig;
 import org.springframework.cloud.openfeign.FeignClient;
