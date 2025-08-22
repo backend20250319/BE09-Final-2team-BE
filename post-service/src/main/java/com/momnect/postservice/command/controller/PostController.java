@@ -3,7 +3,11 @@ package com.momnect.postservice.command.controller;
 import com.momnect.postservice.common.ApiResponse;
 import com.momnect.postservice.command.dto.PostRequestDto;
 import com.momnect.postservice.command.dto.PostResponseDto;
+import com.momnect.postservice.command.dto.CommentDtos;
+import com.momnect.postservice.command.dto.LikeSummaryResponse;
 import com.momnect.postservice.command.service.PostService;
+import com.momnect.postservice.command.service.CommentService;
+import com.momnect.postservice.command.service.LikeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -12,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
@@ -19,18 +24,9 @@ import java.util.List;
 public class PostController {
 
     private final PostService postService;
+    private final CommentService commentService;
+    private final LikeService likeService;
 
-    /**
-     * ★ multipart/form-data용 게시글 작성
-     *
-     * (Postman body → form-data 로 전송 시 필드 하나씩 분리해서 입력)
-     *
-     * userId        - Text
-     * title         - Text
-     * contentHtml   - Text
-     * categoryName  - Text
-     * images        - File (1개 또는 N개)
-     */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<Long> create(
             @RequestParam("userId") Long userId,
@@ -50,9 +46,18 @@ public class PostController {
         return ApiResponse.success(id);
     }
 
+    // ✅ 상세 조회: post + comments + likeSummary
     @GetMapping("/{id}")
-    public ApiResponse<PostResponseDto> getOne(@PathVariable Long id) {
-        return ApiResponse.success(postService.getPost(id));
+    public ApiResponse<Map<String, Object>> getOne(@PathVariable Long id) {
+        PostResponseDto post = postService.getPost(id);
+        List<CommentDtos.Response> comments = commentService.listForPost(id);
+        LikeSummaryResponse likeSummary = likeService.summary(id);
+
+        return ApiResponse.success(Map.of(
+                "post", post,
+                "comments", comments,
+                "like", likeSummary
+        ));
     }
 
     @GetMapping
