@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
+import java.time.Duration;
 import java.util.Date;
 
 import com.momnect.userservice.command.entity.User;
@@ -163,6 +164,66 @@ public class JwtTokenProvider {
 
         } catch (JwtException | IllegalArgumentException e) {
             throw new RuntimeException("Invalid Refresh Token", e);
+        }
+    }
+
+    /**
+     * 비밀번호 재설정용 토큰 생성 (30분 만료)
+     */
+    public String createPasswordResetToken(Long userId) {
+        Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + Duration.ofMinutes(30).toMillis()); // 30분 만료
+
+        return Jwts.builder()
+                .subject("PASSWORD_RESET")
+                .claim("userId", userId)
+                .claim("purpose", "PASSWORD_RESET")
+                .issuedAt(now)
+                .expiration(expiryDate)
+                .signWith(secretKey)
+                .compact();
+    }
+
+    /**
+     * 비밀번호 재설정 토큰에서 사용자 ID 추출
+     */
+    public Long getUserIdFromPasswordResetToken(String token) {
+        try {
+            Claims claims = Jwts.parser()
+                    .verifyWith(secretKey)
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
+
+            // purpose 확인
+            String purpose = claims.get("purpose", String.class);
+            if (!"PASSWORD_RESET".equals(purpose)) {
+                throw new RuntimeException("유효하지 않은 비밀번호 재설정 토큰입니다");
+            }
+
+            return claims.get("userId", Long.class);
+        } catch (ExpiredJwtException e) {
+            throw new RuntimeException("비밀번호 재설정 토큰이 만료되었습니다");
+        } catch (JwtException | IllegalArgumentException e) {
+            throw new RuntimeException("유효하지 않은 비밀번호 재설정 토큰입니다");
+        }
+    }
+
+    /**
+     * 비밀번호 재설정 토큰 유효성 검증
+     */
+    public boolean validatePasswordResetToken(String token) {
+        try {
+            Claims claims = Jwts.parser()
+                    .verifyWith(secretKey)
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
+
+            String purpose = claims.get("purpose", String.class);
+            return "PASSWORD_RESET".equals(purpose);
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
         }
     }
 }

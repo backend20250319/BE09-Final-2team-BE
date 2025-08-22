@@ -43,10 +43,10 @@ public class SecurityConfig {
                                         .authenticationEntryPoint(restAuthenticationEntryPoint)
                 )
                 .authorizeHttpRequests(auth ->
-                        auth.requestMatchers(HttpMethod.POST, "/auth/signup", "/auth/login")
-                                .permitAll()
-                                .requestMatchers(HttpMethod.GET, "/users/check")
-                                .permitAll()
+                        auth.requestMatchers(HttpMethod.POST, "/auth/signup", "/auth/login").permitAll()
+                                .requestMatchers(HttpMethod.GET, "/users/check").permitAll()
+                                .requestMatchers(HttpMethod.POST, "/auth/verify-account").permitAll()
+                                .requestMatchers(HttpMethod.PUT, "/auth/reset-password").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/swagger-ui/**", "/v3/api-docs/**",
                                         "/swagger-resources/**")
                                 .permitAll()
