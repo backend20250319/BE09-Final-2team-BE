@@ -1,9 +1,8 @@
 package com.momnect.userservice.command.controller;
 
+import com.momnect.userservice.command.dto.AuthResponseDTO;
 import com.momnect.userservice.command.dto.LoginRequest;
-import com.momnect.userservice.command.dto.LoginResponse;
 import com.momnect.userservice.command.dto.SignupRequest;
-import com.momnect.userservice.command.dto.UserDTO;
 import com.momnect.userservice.command.service.AuthService;
 import com.momnect.userservice.common.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -32,17 +31,17 @@ public class AuthController {
      * @return 로그인 후 발급되는 AccessToken + RefreshToken + UserDTO
      */
     @PostMapping("/signup")
-    public ResponseEntity<ApiResponse<LoginResponse>> signup(@Valid @RequestBody SignupRequest request) {
-        LoginResponse loginResponse = authService.signup(request);
+    public ResponseEntity<ApiResponse<AuthResponseDTO>> signup(@Valid @RequestBody SignupRequest request) { // DTO 사용
+        AuthResponseDTO authResponse = authService.signup(request); // DTO 전달
 
         // HttpOnly 쿠키 설정
-        ResponseCookie accessTokenCookie = createAccessTokenCookie(loginResponse.getAccessToken());
-        ResponseCookie refreshTokenCookie = createRefreshTokenCookie(loginResponse.getRefreshToken());
+        ResponseCookie accessTokenCookie = createAccessTokenCookie(authResponse.getAccessToken());
+        ResponseCookie refreshTokenCookie = createRefreshTokenCookie(authResponse.getRefreshToken());
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, accessTokenCookie.toString())
                 .header(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString())
-                .body(ApiResponse.success(loginResponse)); // 전체 LoginResponse 반환 (토큰 포함)
+                .body(ApiResponse.success(authResponse)); // 전체 authResponse 반환 (토큰 포함)
     }
 
     /**
@@ -52,17 +51,17 @@ public class AuthController {
      * @return AccessToken + RefreshToken + UserDTO
      */
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<LoginResponse>> login(@Valid @RequestBody LoginRequest request) {
-        LoginResponse loginResponse = authService.login(request.getLoginId(), request.getPassword());
+    public ResponseEntity<ApiResponse<AuthResponseDTO>> login(@Valid @RequestBody LoginRequest request) { // DTO
+        AuthResponseDTO authResponse = authService.login(request);
 
         // HttpOnly 쿠키 설정
-        ResponseCookie accessTokenCookie = createAccessTokenCookie(loginResponse.getAccessToken());
-        ResponseCookie refreshTokenCookie = createRefreshTokenCookie(loginResponse.getRefreshToken());
+        ResponseCookie accessTokenCookie = createAccessTokenCookie(authResponse.getAccessToken());
+        ResponseCookie refreshTokenCookie = createRefreshTokenCookie(authResponse.getRefreshToken());
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, accessTokenCookie.toString())
                 .header(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString())
-                .body(ApiResponse.success(loginResponse)); // 전체 LoginResponse 반환 (토큰 포함)
+                .body(ApiResponse.success(authResponse)); // 전체 authResponse 반환 (토큰 포함)
     }
 
     /**
