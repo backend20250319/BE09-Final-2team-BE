@@ -8,6 +8,9 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Getter
 @Setter
@@ -26,10 +29,12 @@ public class ProductDocument {
     private String productStatus;
     private String tradeStatus;
     private String recommendedAge;
+    private List<String> hashtags;
     private Integer viewCount;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime soldAt;
+    private Boolean isDeleted;
 
     // Product -> ProductDocument 변환
     public static ProductDocument fromEntity(Product product) {
@@ -43,10 +48,14 @@ public class ProductDocument {
                 .productStatus(product.getProductStatus().name())
                 .tradeStatus(product.getTradeStatus().name())
                 .recommendedAge(product.getRecommendedAge().name())
+                .hashtags(product.getProductHashtags().stream()
+                        .map(ph -> ph.getHashtag().getName())
+                        .collect(Collectors.toList()))
                 .viewCount(product.getViewCount())
                 .createdAt(product.getCreatedAt())
                 .updatedAt(product.getUpdatedAt())
                 .soldAt(product.getSoldAt())
+                .isDeleted(product.getIsDeleted()) // default false
                 .build();
     }
 }

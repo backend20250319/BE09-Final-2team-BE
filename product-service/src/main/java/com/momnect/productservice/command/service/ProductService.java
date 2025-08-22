@@ -1,19 +1,22 @@
 package com.momnect.productservice.command.service;
 
 import com.momnect.productservice.command.client.FileClient;
-import com.momnect.productservice.command.document.ProductDocument;
 import com.momnect.productservice.command.client.dto.ImageFileDTO;
+import com.momnect.productservice.command.document.ProductDocument;
 import com.momnect.productservice.command.dto.image.ProductImageDTO;
 import com.momnect.productservice.command.dto.product.ProductDTO;
 import com.momnect.productservice.command.dto.product.ProductRequest;
+import com.momnect.productservice.command.entity.area.Area;
+import com.momnect.productservice.command.entity.area.ProductTradeArea;
+import com.momnect.productservice.command.entity.area.ProductTradeAreaId;
+import com.momnect.productservice.command.entity.hashtag.Hashtag;
+import com.momnect.productservice.command.entity.hashtag.ProductHashtag;
+import com.momnect.productservice.command.entity.hashtag.ProductHashtagId;
 import com.momnect.productservice.command.entity.image.ProductImage;
 import com.momnect.productservice.command.entity.image.ProductImageId;
 import com.momnect.productservice.command.entity.product.Product;
 import com.momnect.productservice.command.entity.product.ProductCategory;
-import com.momnect.productservice.command.repository.ProductCategoryRepository;
-import com.momnect.productservice.command.repository.ProductImageRepository;
-import com.momnect.productservice.command.repository.ProductRepository;
-import com.momnect.productservice.command.repository.ProductSearchRepository;
+import com.momnect.productservice.command.repository.*;
 import com.momnect.productservice.common.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -33,6 +36,10 @@ public class ProductService {
     private final ProductCategoryRepository categoryRepository;
     private final ProductImageRepository productImageRepository;
     private final ProductSearchRepository searchRepository;
+    private final AreaRepository areaRepository;
+    private final ProductTradeAreaRepository productTradeAreaRepository;
+    private final HashtagRepository hashtagRepository;
+    private final ProductHashtagRepository productHashtagRepository;
 
     /***
      * 상품 상세 조회
@@ -83,20 +90,50 @@ public class ProductService {
         Product product = Product.fromRequest(dto, category, Long.valueOf(userId));
         Product saved = productRepository.save(product);
 
-        // 상품 이미지 id 연결
-        if (dto.getImageFileIds() != null && !dto.getImageFileIds()
-                .isEmpty()) {
-            int sortOrder = 1;
-            for (Long imageFileId : dto.getImageFileIds()) {
-                ProductImageId id = new ProductImageId(saved.getId(), imageFileId);
+        // 상품 이미지 연결
+        int sortOrder = 1;
+        for (Long imageFileId : dto.getImageFileIds()) {
+            ProductImageId id = new ProductImageId(saved.getId(), imageFileId);
 
-                ProductImage image = ProductImage.builder()
-                        .id(id)
-                        .sortOrder(sortOrder++)
-                        .build();
+            ProductImage image = ProductImage.builder()
+                    .id(id)
+                    .sortOrder(sortOrder++)
+                    .product(saved)
+                    .build();
 
-                productImageRepository.save(image);
-            }
+            productImageRepository.save(image);
+        }
+
+
+        // 지역 연결
+        for (Integer areaId : dto.getAreaIds()) {
+            Area area = areaRepository.findById(areaId)
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid area ID: " + areaId));
+
+            ProductTradeAreaId tradeAreaId = new ProductTradeAreaId(saved.getId(), area.getId());
+            ProductTradeArea tradeArea = ProductTradeArea.builder()
+                    .id(tradeAreaId)
+                    .product(saved)
+                    .area(area)
+                    .build();
+
+            productTradeAreaRepository.save(tradeArea);
+        }
+
+        // 해시태그 연결
+        for (String tagName : dto.getHashtags()) {
+            Hashtag hashtag = hashtagRepository.findByName(tagName)
+                    .orElseGet(() -> hashtagRepository.save(Hashtag.builder().name(tagName).build()));
+
+            ProductHashtagId phId = new ProductHashtagId(saved.getId(), hashtag.getId());
+            ProductHashtag ph = ProductHashtag.builder()
+                    .id(phId)
+                    .product(saved)
+                    .hashtag(hashtag)
+                    .build();
+
+            // hashtag list에 추가
+            saved.getProductHashtags().add(ph);
         }
 
         // Elasticsearch 색인

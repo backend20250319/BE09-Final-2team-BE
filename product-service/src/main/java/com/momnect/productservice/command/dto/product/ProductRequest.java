@@ -15,4 +15,6 @@ public class ProductRequest {
     private String recommendedAge;
     private final Integer viewCount = 0;
     private List<Long> imageFileIds;
+    private List<Integer> areaIds;
+    private List<String> hashtags;
 }

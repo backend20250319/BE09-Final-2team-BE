@@ -12,16 +12,17 @@ import lombok.*;
 @Builder
 public class ProductHashtag {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @EmbeddedId
+    private ProductHashtagId id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "product_id", nullable = false)
+    @MapsId("productId") // 복합키의 productId와 매핑
+    @JoinColumn(name = "product_id")
     private Product product;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "hashtag_id", nullable = false)
+    @MapsId("hashtagId") // 복합키의 hashtagId와 매핑
+    @JoinColumn(name = "hashtag_id")
     private Hashtag hashtag;
 }
 

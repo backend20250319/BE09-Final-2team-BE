@@ -57,7 +57,8 @@ public class Product {
     private List<ProductImage> productImages = new ArrayList<>();
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL)
-    private List<ProductHashtag> productHashtags = new ArrayList<>();;
+    @Builder.Default
+    private List<ProductHashtag> productHashtags = new ArrayList<>();
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL)
     private List<ProductTradeArea> tradeAreas = new ArrayList<>();
@@ -73,6 +74,11 @@ public class Product {
 
     private LocalDateTime soldAt;
 
+    private LocalDateTime deletedAt;
+
+    @Builder.Default
+    private Boolean isDeleted = false;
+
     @Column(nullable = false)
     private Long createdBy;
 
@@ -87,7 +93,6 @@ public class Product {
         return Product.builder()
                 .category(category)
                 .sellerId(userId)
-                .buyerId(null) // default null
                 .name(dto.getName())
                 .content(dto.getContent())
                 .price(dto.getPrice())

@@ -32,6 +32,8 @@ public class ProductDTO {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime soldAt;
+    private LocalDateTime deletedAt;
+    private Boolean isDeleted;
     private Long createdBy;
     private Long updatedBy;
 
@@ -65,6 +67,8 @@ public class ProductDTO {
                 .createdAt(product.getCreatedAt())
                 .updatedAt(product.getUpdatedAt())
                 .soldAt(product.getSoldAt())
+                .deletedAt(product.getDeletedAt())
+                .isDeleted(product.getIsDeleted())
                 .createdBy(product.getCreatedBy())
                 .updatedBy(product.getUpdatedBy())
                 .build();
