@@ -37,20 +37,23 @@ public class SecurityConfig {
                                         .authenticationEntryPoint(restAuthenticationEntryPoint)
                 )
                 .authorizeHttpRequests(auth ->
-                        auth.requestMatchers(HttpMethod.POST, "/auth/signup", "/auth/login")
-                                .permitAll()
-                                .requestMatchers(HttpMethod.GET,
-                                        "/swagger-ui/**",
-                                        "/v3/api-docs/**",
-                                        "/swagger-resources/**",
-                                        "/areas/load",
-                                        "/areas/search",
-                                        "/categories/init",
-                                        "/categories/tree"
-                                )
-                                .permitAll()
+                        auth
                                 .anyRequest()
-                                .authenticated()
+                                .permitAll() // 모든 경로 허용
+//                                .requestMatchers(HttpMethod.POST, "/auth/signup", "/auth/login")
+//                                .permitAll()
+//                                .requestMatchers(HttpMethod.GET,
+//                                        "/swagger-ui/**",
+//                                        "/v3/api-docs/**",
+//                                        "/swagger-resources/**",
+//                                        "/areas/load",
+//                                        "/areas/search",
+//                                        "/categories/init",
+//                                        "/categories/tree"
+//                                )
+//                                .permitAll()
+//                                .anyRequest()
+//                                .authenticated()
                 )
                 .addFilterBefore(headerAuthenticationFilter(),
                         UsernamePasswordAuthenticationFilter.class)
