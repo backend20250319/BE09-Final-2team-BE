@@ -24,6 +24,9 @@ spring:
     properties:
       hibernate:
         format_sql: true
+  # elasticsearch
+  elasticsearch:
+    uris: http://localhost:9200
 
 # swagger
 springdoc:
