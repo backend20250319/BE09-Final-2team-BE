@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -50,10 +51,13 @@ public class Product {
     private RecommendedAge recommendedAge;
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL)
-    private List<ProductHashtag> productHashtags;
+    private List<ProductImage> productImages = new ArrayList<>();
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL)
-    private List<ProductTradeArea> tradeAreas;
+    private List<ProductHashtag> productHashtags = new ArrayList<>();;
+
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL)
+    private List<ProductTradeArea> tradeAreas = new ArrayList<>();
 
     @Column(nullable = false)
     private Integer viewCount;

@@ -19,5 +19,10 @@ public class ProductImage {
 
     @Column(nullable = false)
     private Integer sortOrder;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @MapsId("productId") // 복합키의 productId와 매핑
+    @JoinColumn(name = "product_id")
+    private Product product;
 }
 
