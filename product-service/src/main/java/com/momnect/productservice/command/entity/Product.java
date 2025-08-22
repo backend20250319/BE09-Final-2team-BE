@@ -1,7 +1,9 @@
 package com.momnect.productservice.command.entity;
 
+import com.momnect.productservice.command.dto.ProductRequest;
 import jakarta.persistence.*;
 import lombok.*;
+
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -24,7 +26,6 @@ public class Product {
     @Column(nullable = false)
     private Long sellerId;
 
-    @Column(nullable = false)
     private Long buyerId;
 
     @Column(length = 20, nullable = false)
@@ -49,9 +50,6 @@ public class Product {
     private RecommendedAge recommendedAge;
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL)
-    private List<ProductImage> images;
-
-    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL)
     private List<ProductHashtag> productHashtags;
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL)
@@ -73,5 +71,28 @@ public class Product {
 
     @Column(nullable = false)
     private Long updatedBy;
+
+
+    // DTO -> Entity 변환
+    public static Product fromRequest(ProductRequest dto, ProductCategory category, Long userId) {
+        LocalDateTime now = LocalDateTime.now();
+
+        return Product.builder()
+                .category(category)
+                .sellerId(userId)
+                .buyerId(null) // default null
+                .name(dto.getName())
+                .content(dto.getContent())
+                .price(dto.getPrice())
+                .productStatus(ProductStatus.valueOf(dto.getProductStatus()))
+                .tradeStatus(TradeStatus.valueOf(dto.getTradeStatus()))
+                .recommendedAge(RecommendedAge.valueOf(dto.getRecommendedAge()))
+                .viewCount(dto.getViewCount()) // default 0
+                .createdAt(now)
+                .updatedAt(now)
+                .createdBy(userId)
+                .updatedBy(userId)
+                .build();
+    }
 }
 
