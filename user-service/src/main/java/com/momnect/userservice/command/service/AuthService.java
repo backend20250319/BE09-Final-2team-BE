@@ -1,8 +1,6 @@
 package com.momnect.userservice.command.service;
 
-import com.momnect.userservice.command.dto.LoginResponse;
-import com.momnect.userservice.command.dto.SignupRequest;
-import com.momnect.userservice.command.dto.UserDTO;
+import com.momnect.userservice.command.dto.*;
 import com.momnect.userservice.command.entity.User;
 import com.momnect.userservice.command.repository.UserRepository;
 import com.momnect.userservice.exception.UserNotFoundException;
@@ -26,8 +24,9 @@ public class AuthService {
     /**
      * 로그인: loginId + password 검증 후 AccessToken, RefreshToken 발급
      */
-    public LoginResponse login(String loginId, String password) {
-        User user = userRepository.findByLoginId(loginId)
+    public AuthResponseDTO login(LoginRequest request) {
+        // DB에서 사용자 조회
+        User user = userRepository.findByLoginId(request.getLoginId()) // DTO 사용
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         // 탈퇴한 사용자 확인
@@ -36,7 +35,9 @@ public class AuthService {
         }
 
         // 로그인 시 비밀번호 검증, 평문과 해시를 비교(복원X)
-        if (!passwordEncoder.matches(password, user.getPassword())) {
+        // request.getPassword() - 사용자가 입력한 평문 비밀번호
+        // user.getPassword() - DB에 저장된 해시된 비밀번호
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) { // DTO 사용
             throw new RuntimeException("Invalid password");
         }
 
@@ -46,14 +47,14 @@ public class AuthService {
         user.setRefreshToken(refreshToken);
         userRepository.save(user);
 
-        UserDTO userDTO = userMapper.toUserDTO(user);
-        return new LoginResponse(accessToken, refreshToken, userDTO);
+        PublicUserDTO publicUserDTO = userMapper.toPublicUserDTO(user, true); // 이메일 포함
+        return new AuthResponseDTO(accessToken, refreshToken, publicUserDTO);
     }
 
     /**
      * 회원가입
      */
-    public LoginResponse signup(SignupRequest request) {
+    public AuthResponseDTO signup(SignupRequest request) {
         // 중복 체크
         validateDuplicateUser(request);
 
@@ -77,8 +78,8 @@ public class AuthService {
         user.setRefreshToken(refreshToken);
         userRepository.save(user);
 
-        UserDTO userDTO = userMapper.toUserDTO(user);
-        return new LoginResponse(accessToken, refreshToken, userDTO);
+        PublicUserDTO publicUserDTO = userMapper.toPublicUserDTO(user, true); // 이메일 포함
+        return new AuthResponseDTO(accessToken, refreshToken, publicUserDTO);
     }
 
     /**
