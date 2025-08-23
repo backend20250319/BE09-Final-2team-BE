@@ -132,7 +132,7 @@ public class UserService {
             throw new UserNotFoundException("탈퇴한 사용자입니다.");
         }
 
-        return userMapper.toPublicUserDTO(user);
+        return userMapper.toPublicUserDTO(user, false);
     }
 
     /**

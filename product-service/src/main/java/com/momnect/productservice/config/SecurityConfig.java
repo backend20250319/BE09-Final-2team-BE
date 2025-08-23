@@ -37,8 +37,7 @@ public class SecurityConfig {
                                         .authenticationEntryPoint(restAuthenticationEntryPoint)
                 )
                 .authorizeHttpRequests(auth ->
-                        auth.requestMatchers(HttpMethod.POST, "/auth/signup", "/auth/login")
-                                .permitAll()
+                        auth
                                 .requestMatchers(HttpMethod.GET,
                                         "/swagger-ui/**",
                                         "/v3/api-docs/**",

@@ -45,10 +45,11 @@ public class UserMapper {
      * User 엔티티를 PublicUserDTO로 변환 (공개 정보만)
      * 다른 사용자 프로필 조회 시 사용
      */
-    public PublicUserDTO toPublicUserDTO(User user) {
+    public PublicUserDTO toPublicUserDTO(User user, boolean includeEmail) {
         return PublicUserDTO.builder()
                 .id(user.getId())
                 .nickname(user.getNickname())
+                .email(includeEmail ? user.getEmail():null)
                 .profileImageUrl(user.getProfileImageUrl())
                 .createdAt(user.getCreatedAt())
                 .build();

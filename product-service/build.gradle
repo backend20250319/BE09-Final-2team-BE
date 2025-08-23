@@ -22,6 +22,9 @@ repositories {
 }
 
 dependencies {
+    // elastic search
+    implementation 'org.springframework.boot:spring-boot-starter-data-elasticsearch'
+
     // https://mvnrepository.com/artifact/org.apache.poi/poi-ooxml
     // excel
     implementation("org.apache.poi:poi-ooxml:5.2.3")

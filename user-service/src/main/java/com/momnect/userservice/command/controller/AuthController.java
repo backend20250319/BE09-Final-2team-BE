@@ -1,9 +1,6 @@
 package com.momnect.userservice.command.controller;
 
-import com.momnect.userservice.command.dto.LoginRequest;
-import com.momnect.userservice.command.dto.LoginResponse;
-import com.momnect.userservice.command.dto.SignupRequest;
-import com.momnect.userservice.command.dto.UserDTO;
+import com.momnect.userservice.command.dto.*;
 import com.momnect.userservice.command.service.AuthService;
 import com.momnect.userservice.common.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -32,17 +29,17 @@ public class AuthController {
      * @return 로그인 후 발급되는 AccessToken + RefreshToken + UserDTO
      */
     @PostMapping("/signup")
-    public ResponseEntity<ApiResponse<UserDTO>> signup(@Valid @RequestBody SignupRequest request) {
-        LoginResponse loginResponse = authService.signup(request);
+    public ResponseEntity<ApiResponse<AuthResponseDTO>> signup(@Valid @RequestBody SignupRequest request) { // DTO 사용
+        AuthResponseDTO authResponse = authService.signup(request); // DTO 전달
 
         // HttpOnly 쿠키 설정
-        ResponseCookie accessTokenCookie = createAccessTokenCookie(loginResponse.getAccessToken());
-        ResponseCookie refreshTokenCookie = createRefreshTokenCookie(loginResponse.getRefreshToken());
+        ResponseCookie accessTokenCookie = createAccessTokenCookie(authResponse.getAccessToken());
+        ResponseCookie refreshTokenCookie = createRefreshTokenCookie(authResponse.getRefreshToken());
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, accessTokenCookie.toString())
                 .header(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString())
-                .body(ApiResponse.success(loginResponse.getUser()));
+                .body(ApiResponse.success(authResponse)); // 전체 authResponse 반환 (토큰 포함)
     }
 
     /**
@@ -52,17 +49,17 @@ public class AuthController {
      * @return AccessToken + RefreshToken + UserDTO
      */
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<UserDTO>> login(@Valid @RequestBody LoginRequest request) {
-        LoginResponse loginResponse = authService.login(request.getLoginId(), request.getPassword());
+    public ResponseEntity<ApiResponse<AuthResponseDTO>> login(@Valid @RequestBody LoginRequest request) { // DTO
+        AuthResponseDTO authResponse = authService.login(request);
 
         // HttpOnly 쿠키 설정
-        ResponseCookie accessTokenCookie = createAccessTokenCookie(loginResponse.getAccessToken());
-        ResponseCookie refreshTokenCookie = createRefreshTokenCookie(loginResponse.getRefreshToken());
+        ResponseCookie accessTokenCookie = createAccessTokenCookie(authResponse.getAccessToken());
+        ResponseCookie refreshTokenCookie = createRefreshTokenCookie(authResponse.getRefreshToken());
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, accessTokenCookie.toString())
                 .header(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString())
-                .body(ApiResponse.success(loginResponse.getUser()));
+                .body(ApiResponse.success(authResponse)); // 전체 authResponse 반환 (토큰 포함)
     }
 
     /**
@@ -86,6 +83,28 @@ public class AuthController {
                 .header(HttpHeaders.SET_COOKIE, accessTokenCookie.toString())
                 .header(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString())
                 .body(ApiResponse.success(null));
+    }
+
+    /**
+     * 통합 계정 확인 (아이디 찾기 / 비밀번호 재설정)
+     */
+    @PostMapping("/verify-account")
+    public ResponseEntity<ApiResponse<VerifyAccountResponse>> verifyAccount(
+            @Valid @RequestBody VerifyAccountRequest request) {
+
+        VerifyAccountResponse response = authService.verifyAccount(request);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+        /**
+         * 비밀번호 재설정
+         */
+    @PutMapping("/reset-password")
+    public ResponseEntity<ApiResponse<String>> resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request) {
+
+        authService.resetPassword(request);
+        return ResponseEntity.ok(ApiResponse.success("비밀번호가 성공적으로 변경되었습니다"));
     }
 
     /**

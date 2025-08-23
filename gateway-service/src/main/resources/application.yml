@@ -68,6 +68,13 @@ spring:
             - Path=/api/v1/review-service/**
           filters:
             - RewritePath=/api/v1/review-service/(?<segment>.*), /$\{segment}
+        # file service
+        - id: file-service
+          uri: lb://FILE-SERVICE
+          predicates:
+            - Path=/api/v1/file-service/**
+          filters:
+            - RewritePath=/api/v1/file-service/(?<segment>.*), /$\{segment}
 
 
 eureka:
@@ -92,3 +99,5 @@ springdoc:
         url: /api/v1/post-service/v3/api-docs
       - name: review-service
         url: /api/v1/review-service/v3/api-docs
+      - name: file-service
+        url: /api/v1/file-service/v3/api-docs
