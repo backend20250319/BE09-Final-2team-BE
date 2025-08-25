@@ -23,7 +23,7 @@ public class TradeController {
     private final TradeService tradeService;
 
     /**
-     * 내 거래 현황 요약 조회 (구매수/판매수)
+     * 내 거래 현황 요약 조회 (총 등록한 상품수/구매수/판매수)
      */
     @GetMapping("/me/summary")
     public ResponseEntity<ApiResponse<TradeSummaryDTO>> getMyTradeSummary(@AuthenticationPrincipal String userId) {
@@ -32,7 +32,7 @@ public class TradeController {
     }
 
     /**
-     * 특정 유저 거래 현황 요약 조회 (판매수만)
+     * 특정 유저 거래 현황 요약 조회 (총 등록한 상품수/판매수)
      */
     @GetMapping("/users/{userId}/summary")
     public ResponseEntity<ApiResponse<TradeSummaryDTO>> getUserTradeSummary(@PathVariable Long userId) {

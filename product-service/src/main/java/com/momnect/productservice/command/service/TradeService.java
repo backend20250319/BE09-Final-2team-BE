@@ -42,16 +42,28 @@ public class TradeService {
      */
     @Transactional(readOnly = true)
     public TradeSummaryDTO getTradeSummary(Long userId, boolean isMyProfile) {
+        // 총 판매상품 수 (판매 완료 여부 상관없이 판매자가 올린 모든 상품)
+        Integer totalSalesCount = productRepository.countBySellerIdAndIsDeletedFalse(userId);
+
+        // 판매 완료 상품 수
         Integer salesCount = productRepository.countByTradeStatusAndSellerId(
                 TradeStatus.SOLD, userId);
 
         if (isMyProfile) {
-            Integer purchaseCount = productRepository.countByTradeStatusAndBuyerId(
-                    TradeStatus.SOLD, userId);
-            return TradeSummaryDTO.builder().salesCount(salesCount).purchaseCount(purchaseCount).build();
+            // 구매 완료 상품 수
+            Integer purchaseCount = productRepository.countByTradeStatusAndBuyerId(TradeStatus.SOLD, userId);
+
+            return TradeSummaryDTO.builder()
+                    .totalSalesCount(totalSalesCount)     // 총 판매상품 수
+                    .salesCount(salesCount)               // 판매 완료 상품 수
+                    .purchaseCount(purchaseCount)         // 구매 완료 상품 수
+                    .build();
         } else {
             // 타유저 거래 현황은 판매수만 리턴
-            return TradeSummaryDTO.builder().salesCount(salesCount).build();
+            return TradeSummaryDTO.builder()
+                    .totalSalesCount(totalSalesCount)     // 총 판매상품 수
+                    .salesCount(salesCount)               // 판매 완료 상품 수
+                    .build();
         }
     }
 
