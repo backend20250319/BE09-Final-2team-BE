@@ -35,5 +35,3 @@ out/
 
 ### VS Code ###
 .vscode/
-# OpenAI API Key
-review-service/src/main/resources/application-openai.yml
