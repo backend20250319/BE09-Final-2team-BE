@@ -20,5 +20,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     List<Product> findByTradeStatusAndBuyerId(TradeStatus tradeStatus, Long userId);
 
     List<Product> findBySellerIdAndIsDeletedFalse(Long userId);
+
+    Integer countBySellerIdAndIsDeletedFalse(Long userId);
 }
 
