@@ -11,5 +11,9 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     List<Product> findTop3BySellerIdOrderByCreatedAtDesc(Long sellerId);
 
     Integer countByTradeStatusAndSellerIdOrBuyerId(TradeStatus tradeStatus, Long sellerId, Long buyerId);
+
+    Integer countByTradeStatusAndSellerId(TradeStatus tradeStatus, Long userId);
+
+    Integer countByTradeStatusAndBuyerId(TradeStatus tradeStatus, Long userId);
 }
 
