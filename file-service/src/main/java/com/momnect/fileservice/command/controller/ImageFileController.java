@@ -4,12 +4,14 @@ import com.momnect.fileservice.command.dto.ImageFileDTO;
 import com.momnect.fileservice.command.service.ImageFileService;
 import com.momnect.fileservice.common.ApiResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
@@ -17,6 +19,19 @@ import java.util.List;
 public class ImageFileController {
 
     private final ImageFileService imageFileService;
+
+    @Value("${ftp.file-server-url}")
+    private String fileServerUrl;
+
+    /***
+     * 파일 서버 기본 URL 조회
+     * @return file-server-url (application.yml에서 가져옴)
+     */
+    @GetMapping("/server-url")
+    public ResponseEntity<ApiResponse<Map<String, String>>> getFileServerUrl() {
+        Map<String, String> response = Map.of("fileServiceUrl", fileServerUrl);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
 
     /***
      * files?ids=1,2,3
