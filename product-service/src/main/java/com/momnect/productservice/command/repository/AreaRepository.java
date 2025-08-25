@@ -1,7 +1,7 @@
 package com.momnect.productservice.command.repository;
 
-import com.momnect.productservice.command.entity.Area;
-import com.momnect.productservice.command.entity.AreaLevel;
+import com.momnect.productservice.command.entity.area.Area;
+import com.momnect.productservice.command.entity.area.AreaLevel;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

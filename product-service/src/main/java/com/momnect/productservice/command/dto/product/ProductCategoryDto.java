@@ -1,6 +1,6 @@
-package com.momnect.productservice.command.dto;
+package com.momnect.productservice.command.dto.product;
 
-import com.momnect.productservice.command.entity.ProductCategory;
+import com.momnect.productservice.command.entity.product.ProductCategory;
 import lombok.Builder;
 import lombok.Data;
 

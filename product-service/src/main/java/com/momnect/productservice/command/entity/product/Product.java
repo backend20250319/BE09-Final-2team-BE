@@ -1,10 +1,14 @@
-package com.momnect.productservice.command.entity;
+package com.momnect.productservice.command.entity.product;
 
-import com.momnect.productservice.command.dto.ProductRequest;
+import com.momnect.productservice.command.dto.product.ProductRequest;
+import com.momnect.productservice.command.entity.image.ProductImage;
+import com.momnect.productservice.command.entity.area.ProductTradeArea;
+import com.momnect.productservice.command.entity.hashtag.ProductHashtag;
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -50,10 +54,14 @@ public class Product {
     private RecommendedAge recommendedAge;
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL)
-    private List<ProductHashtag> productHashtags;
+    private List<ProductImage> productImages = new ArrayList<>();
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL)
-    private List<ProductTradeArea> tradeAreas;
+    @Builder.Default
+    private List<ProductHashtag> productHashtags = new ArrayList<>();
+
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL)
+    private List<ProductTradeArea> tradeAreas = new ArrayList<>();
 
     @Column(nullable = false)
     private Integer viewCount;
@@ -65,6 +73,11 @@ public class Product {
     private LocalDateTime updatedAt;
 
     private LocalDateTime soldAt;
+
+    private LocalDateTime deletedAt;
+
+    @Builder.Default
+    private Boolean isDeleted = false;
 
     @Column(nullable = false)
     private Long createdBy;
@@ -80,7 +93,6 @@ public class Product {
         return Product.builder()
                 .category(category)
                 .sellerId(userId)
-                .buyerId(null) // default null
                 .name(dto.getName())
                 .content(dto.getContent())
                 .price(dto.getPrice())

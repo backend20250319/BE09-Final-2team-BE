@@ -1,24 +1,165 @@
 package com.momnect.productservice.command.service;
 
-import com.momnect.productservice.command.dto.ProductDocument;
-import com.momnect.productservice.command.dto.ProductRequest;
-import com.momnect.productservice.command.entity.*;
-import com.momnect.productservice.command.repository.ProductCategoryRepository;
-import com.momnect.productservice.command.repository.ProductImageRepository;
-import com.momnect.productservice.command.repository.ProductRepository;
-import com.momnect.productservice.command.repository.ProductSearchRepository;
+import com.momnect.productservice.command.client.FileClient;
+import com.momnect.productservice.command.client.dto.ImageFileDTO;
+import com.momnect.productservice.command.document.ProductDocument;
+import com.momnect.productservice.command.dto.image.ProductImageDTO;
+import com.momnect.productservice.command.dto.product.ProductDTO;
+import com.momnect.productservice.command.dto.product.ProductRequest;
+import com.momnect.productservice.command.dto.product.ProductSummaryDto;
+import com.momnect.productservice.command.entity.area.Area;
+import com.momnect.productservice.command.entity.area.ProductTradeArea;
+import com.momnect.productservice.command.entity.area.ProductTradeAreaId;
+import com.momnect.productservice.command.entity.hashtag.Hashtag;
+import com.momnect.productservice.command.entity.hashtag.ProductHashtag;
+import com.momnect.productservice.command.entity.hashtag.ProductHashtagId;
+import com.momnect.productservice.command.entity.image.ProductImage;
+import com.momnect.productservice.command.entity.image.ProductImageId;
+import com.momnect.productservice.command.entity.product.Product;
+import com.momnect.productservice.command.entity.product.ProductCategory;
+import com.momnect.productservice.command.entity.product.Wishlist;
+import com.momnect.productservice.command.repository.*;
+import com.momnect.productservice.common.ApiResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class ProductService {
 
+    private final FileClient fileClient;
+
     private final ProductRepository productRepository;
     private final ProductCategoryRepository categoryRepository;
     private final ProductImageRepository productImageRepository;
     private final ProductSearchRepository searchRepository;
+    private final AreaRepository areaRepository;
+    private final ProductTradeAreaRepository productTradeAreaRepository;
+    private final HashtagRepository hashtagRepository;
+    private final WishlistRepository wishlistRepository;
+
+
+    @Value("${ftp.base-url}")
+    private String ftpBaseUrl;
+
+    private String toAbsoluteUrl(String relativePath) {
+        if (relativePath == null || relativePath.isEmpty()) return null;
+        return ftpBaseUrl + relativePath;
+    }
+
+    /**
+     * 주어진 상품 ID 목록에 해당하는 상품들의 요약 정보를 조회
+     * - 각 상품의 첫 번째 이미지 URL을 조회(썸네일)
+     * - 사용자가 로그인한 경우, 상품에 대한 찜 여부 확인 가능
+     *
+     * @param productIds 조회할 상품 ID 리스트
+     * @param userId 요청한 사용자 ID (로그인하지 않은 경우 null 가능)
+     * @return 상품 요약 정보를 담은 ProductSummaryDto 리스트
+     */
+    @Transactional(readOnly = true)
+    public List<ProductSummaryDto> getProductsByIds(List<Long> productIds, Long userId) {
+        // 상품 조회
+        List<Product> products = productRepository.findAllById(productIds);
+
+        // 상품 이미지 매핑 : productId -> 첫 번째 이미지 ID
+        Map<Long, Long> productImageIdMap = products.stream()
+                .collect(Collectors.toMap(
+                        Product::getId,
+                        p -> p.getProductImages().stream()
+                                .min(Comparator.comparingInt(ProductImage::getSortOrder))
+                                .orElseThrow(() -> new IllegalStateException("Product has no images"))
+                                .getId()
+                                .getImageFileId()
+                ));
+
+        // FileService 요청
+        String idsParam = productImageIdMap.values().stream()
+                .map(String::valueOf)
+                .collect(Collectors.joining(","));
+
+        Map<Long, String> imageUrlMap = new HashMap<>();
+        ApiResponse<List<ImageFileDTO>> response = fileClient.getImageFilesByIds(idsParam);
+        for (ImageFileDTO dto : response.getData()) {
+            imageUrlMap.put(dto.getId(), dto.getPath());
+        }
+
+        // 찜 여부 조회 (로그인 시만)
+        Map<Long, Boolean> likedMap;
+        if (userId != null) {
+            List<Wishlist> wishlists = wishlistRepository.findAllByUserIdAndProductIdIn(userId, productIds);
+            likedMap = wishlists.stream()
+                    .collect(Collectors.toMap(
+                            w -> w.getProduct().getId(),
+                            w -> true
+                    ));
+        } else {
+            likedMap = Collections.emptyMap();
+        }
+
+        // DTO 변환
+        return products.stream().map(product -> {
+            Long imageId = productImageIdMap.get(product.getId());
+            String thumbnailUrl = toAbsoluteUrl(imageUrlMap.get(imageId));
+
+            Boolean isLiked = likedMap.getOrDefault(product.getId(), false);
+
+            // 읍면동
+            String emd = product.getTradeAreas().get(0).getArea().getName();
+
+            return ProductSummaryDto.builder()
+                    .id(product.getId())
+                    .thumbnailUrl(thumbnailUrl)
+                    .isLiked(isLiked)
+                    .price(product.getPrice())
+                    .emd(emd)
+                    .createdAt(product.getCreatedAt())
+                    .productStatus(product.getProductStatus().name())
+                    .tradeStatus(product.getTradeStatus().name())
+                    .isDeleted(product.getIsDeleted())
+                    .build();
+        }).toList();
+    }
+
+
+    /***
+     * 상품 상세 조회
+     * @param productId 조회할 상품 ID
+     * @return 상품 엔티티
+     */
+    @Transactional(readOnly = true)
+    public ProductDTO getProduct(Long productId) {
+        // 엔티티 조회
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다. ID: " + productId));
+
+        // 이미지 파일 ID 리스트 추출
+        List<Long> imageIds = product.getProductImages()
+                .stream()
+                .map(img -> img.getId().getImageFileId())
+                .toList();
+
+        String idsParam = imageIds.stream().map(String::valueOf).collect(Collectors.joining(","));
+        ApiResponse<List<ImageFileDTO>> response = fileClient.getImageFilesByIds(idsParam);
+
+        Map<Long, String> paths = response.getData().stream()
+                .collect(Collectors.toMap(ImageFileDTO::getId, ImageFileDTO::getPath));
+
+        List<ProductImageDTO> images = product.getProductImages().stream()
+                .map(img -> ProductImageDTO.builder()
+                        .imageFileId(img.getId().getImageFileId())
+                        .sortOrder(img.getSortOrder())
+                        .url(toAbsoluteUrl(paths.get(img.getId().getImageFileId())))
+                        .build())
+                .collect(Collectors.toList());
+
+
+        return ProductDTO.fromEntity(product, images);
+    }
 
     /***
      * 상품 등록 기능
@@ -34,20 +175,50 @@ public class ProductService {
         Product product = Product.fromRequest(dto, category, Long.valueOf(userId));
         Product saved = productRepository.save(product);
 
-        // 상품 이미지 id 연결
-        if (dto.getImageFileIds() != null && !dto.getImageFileIds()
-                .isEmpty()) {
-            int sortOrder = 1;
-            for (Long imageFileId : dto.getImageFileIds()) {
-                ProductImageId id = new ProductImageId(saved.getId(), imageFileId);
+        // 상품 이미지 연결
+        int sortOrder = 1;
+        for (Long imageFileId : dto.getImageFileIds()) {
+            ProductImageId id = new ProductImageId(saved.getId(), imageFileId);
 
-                ProductImage image = ProductImage.builder()
-                        .id(id)
-                        .sortOrder(sortOrder++)
-                        .build();
+            ProductImage image = ProductImage.builder()
+                    .id(id)
+                    .sortOrder(sortOrder++)
+                    .product(saved)
+                    .build();
 
-                productImageRepository.save(image);
-            }
+            productImageRepository.save(image);
+        }
+
+
+        // 지역 연결
+        for (Integer areaId : dto.getAreaIds()) {
+            Area area = areaRepository.findById(areaId)
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid area ID: " + areaId));
+
+            ProductTradeAreaId tradeAreaId = new ProductTradeAreaId(saved.getId(), area.getId());
+            ProductTradeArea tradeArea = ProductTradeArea.builder()
+                    .id(tradeAreaId)
+                    .product(saved)
+                    .area(area)
+                    .build();
+
+            productTradeAreaRepository.save(tradeArea);
+        }
+
+        // 해시태그 연결
+        for (String tagName : dto.getHashtags()) {
+            Hashtag hashtag = hashtagRepository.findByName(tagName)
+                    .orElseGet(() -> hashtagRepository.save(Hashtag.builder().name(tagName).build()));
+
+            ProductHashtagId phId = new ProductHashtagId(saved.getId(), hashtag.getId());
+            ProductHashtag ph = ProductHashtag.builder()
+                    .id(phId)
+                    .product(saved)
+                    .hashtag(hashtag)
+                    .build();
+
+            // hashtag list에 추가
+            saved.getProductHashtags().add(ph);
         }
 
         // Elasticsearch 색인

@@ -1,6 +1,6 @@
 package com.momnect.productservice.command.controller;
 
-import com.momnect.productservice.command.dto.AreaDto;
+import com.momnect.productservice.command.dto.area.AreaDto;
 import com.momnect.productservice.command.service.AreaService;
 import com.momnect.productservice.common.ApiResponse;
 import lombok.RequiredArgsConstructor;
@@ -37,7 +37,7 @@ public class AreaController {
      * API 사용 금지 (내부용)
      * resources에 있는 엑셀 파일로 지역 테이블 초기화
      */
-    @GetMapping("/areas/load")
+    @GetMapping("/load")
     public ResponseEntity<String> loadAreas() {
         try {
             // resources/regions.xlsx 파일 읽기

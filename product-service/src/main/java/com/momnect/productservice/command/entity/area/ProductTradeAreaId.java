@@ -1,4 +1,4 @@
-package com.momnect.productservice.command.entity;
+package com.momnect.productservice.command.entity.area;
 
 import jakarta.persistence.Embeddable;
 import lombok.AllArgsConstructor;
@@ -11,7 +11,7 @@ import java.io.Serializable;
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
-public class ProductImageId implements Serializable {
+public class ProductTradeAreaId implements Serializable {
     private Long productId;
-    private Long imageFileId;
+    private Integer areaId;
 }

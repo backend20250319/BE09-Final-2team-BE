@@ -1,5 +1,6 @@
-package com.momnect.productservice.command.entity;
+package com.momnect.productservice.command.entity.image;
 
+import com.momnect.productservice.command.entity.product.Product;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -19,5 +20,10 @@ public class ProductImage {
 
     @Column(nullable = false)
     private Integer sortOrder;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @MapsId("productId") // 복합키의 productId와 매핑
+    @JoinColumn(name = "product_id")
+    private Product product;
 }
 

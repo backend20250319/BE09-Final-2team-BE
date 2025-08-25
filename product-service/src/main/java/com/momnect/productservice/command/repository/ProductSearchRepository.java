@@ -1,6 +1,6 @@
 package com.momnect.productservice.command.repository;
 
-import com.momnect.productservice.command.dto.ProductDocument;
+import com.momnect.productservice.command.document.ProductDocument;
 import org.springframework.data.elasticsearch.repository.ElasticsearchRepository;
 
 public interface ProductSearchRepository extends ElasticsearchRepository<ProductDocument, Long> {

@@ -1,8 +1,8 @@
 package com.momnect.productservice.command.service;
 
-import com.momnect.productservice.command.dto.AreaDto;
-import com.momnect.productservice.command.entity.Area;
-import com.momnect.productservice.command.entity.AreaLevel;
+import com.momnect.productservice.command.dto.area.AreaDto;
+import com.momnect.productservice.command.entity.area.Area;
+import com.momnect.productservice.command.entity.area.AreaLevel;
 import com.momnect.productservice.command.repository.AreaRepository;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;

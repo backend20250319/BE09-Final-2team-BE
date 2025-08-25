@@ -1,4 +1,4 @@
-package com.momnect.productservice.command.entity;
+package com.momnect.productservice.command.entity.hashtag;
 
 import jakarta.persistence.*;
 import lombok.*;

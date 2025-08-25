@@ -1,15 +1,15 @@
-package com.momnect.productservice.command.entity;
+package com.momnect.productservice.command.entity.product;
 
 import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "tbl_product_hashtag")
+@Table(name = "tbl_wishlist")
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ProductHashtag {
+public class Wishlist {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -19,8 +19,6 @@ public class ProductHashtag {
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "hashtag_id", nullable = false)
-    private Hashtag hashtag;
+    @Column(nullable = false)
+    private Long userId;
 }
-

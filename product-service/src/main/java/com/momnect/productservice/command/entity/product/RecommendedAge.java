@@ -1,4 +1,4 @@
-package com.momnect.productservice.command.entity;
+package com.momnect.productservice.command.entity.product;
 
 public enum RecommendedAge {
     MONTH_0_6,

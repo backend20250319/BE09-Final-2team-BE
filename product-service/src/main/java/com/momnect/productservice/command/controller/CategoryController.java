@@ -1,6 +1,6 @@
 package com.momnect.productservice.command.controller;
 
-import com.momnect.productservice.command.dto.ProductCategoryDto;
+import com.momnect.productservice.command.dto.product.ProductCategoryDto;
 import com.momnect.productservice.command.service.ProductCategoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
