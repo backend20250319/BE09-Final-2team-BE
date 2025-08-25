@@ -1,11 +1,9 @@
 package com.momnect.reviewservice.command.controller;
 
-import com.momnect.reviewservice.command.dto.ReviewRequest;
-import com.momnect.reviewservice.command.dto.ReviewResponse;
-import com.momnect.reviewservice.command.dto.ReviewStatsResponse;
-import com.momnect.reviewservice.command.dto.ReviewSummaryResponse;
+import com.momnect.reviewservice.command.dto.*;
 import com.momnect.reviewservice.command.service.ReviewService;
 import com.momnect.reviewservice.common.ApiResponse;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,14 +13,30 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Map;
 import java.util.HashMap;
-import com.momnect.reviewservice.command.dto.UserRankingResponse;
 
 @RestController
 @RequestMapping("/reviews")
+@RequiredArgsConstructor
 public class ReviewController {
 
     @Autowired
     private ReviewService reviewService;
+
+    // 특정 사용자의 리뷰 총 개수를 조회하는 기존 엔드포인트
+    @GetMapping("/users/{userId}/count")
+    public ResponseEntity<ReviewCountResponse> getReviewCountByUserId(@PathVariable Long userId) {
+        long count = reviewService.getReviewCountByUserId(userId);
+        // long 타입의 count를 Integer로 변환하여 DTO에 전달
+        ReviewCountResponse response = new ReviewCountResponse(Math.toIntExact(count));
+        return ResponseEntity.ok(response);
+    }
+
+    // 특정 사용자의 전체 리뷰 내역을 조회하는 신규 엔드포인트
+    @GetMapping("/users/{userId}")
+    public ResponseEntity<ApiResponse<List<ReviewResponse>>> getReviewsByUserId(@PathVariable Long userId) {
+        List<ReviewResponse> reviews = reviewService.getReviewsByUserId(userId);
+        return ResponseEntity.ok(ApiResponse.success(reviews));
+    }
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<ReviewResponse>>> getAllReviews() {
