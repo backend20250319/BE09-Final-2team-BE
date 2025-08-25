@@ -9,35 +9,30 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "tbl_review")
+@Table(name = "tbl_review_option")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Review {
+public class ReviewOption {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id")
-    private Long reviewId;
+    private Long optionId;
 
-    @Column(name = "product_id", nullable = false)
-    private Long productId;
-
-    @Column(name = "user_id", nullable = false)
-    private Long userId;
-
-    @Column(name = "rating", nullable = false)
-    private float rating;
-
-    @Column(name = "content", length = 1000)
-    private String content;
-
-    @Column(name = "summary", length = 100)
-    private String summary;
+    @Column(name = "name", nullable = false, length = 20)
+    private String name;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @Column(name = "created_by", nullable = false)
+    private Long createdBy;
+
+    @Column(name = "updated_by")
+    private Long updatedBy;
 }

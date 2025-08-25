@@ -19,4 +19,5 @@ public class ReviewResponse {
     private Boolean satisfaction;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private String sentiment;
 }
