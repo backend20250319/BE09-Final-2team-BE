@@ -14,6 +14,7 @@ import java.util.List;
 @Entity
 @Table(name = "tbl_product")
 @Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
