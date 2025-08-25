@@ -26,8 +26,8 @@ public class TradeController {
      * 내 거래 현황 요약 조회 (구매수/판매수)
      */
     @GetMapping("/me/summary")
-    public ResponseEntity<ApiResponse<TradeSummaryDTO>> getMyTradeSummary(@AuthenticationPrincipal Long userId) {
-        TradeSummaryDTO summary = tradeService.getTradeSummary(userId, true);
+    public ResponseEntity<ApiResponse<TradeSummaryDTO>> getMyTradeSummary(@AuthenticationPrincipal String userId) {
+        TradeSummaryDTO summary = tradeService.getTradeSummary(Long.valueOf(userId), true);
         return ResponseEntity.ok(ApiResponse.success(summary));
     }
 
@@ -38,5 +38,41 @@ public class TradeController {
     public ResponseEntity<ApiResponse<TradeSummaryDTO>> getUserTradeSummary(@PathVariable Long userId) {
         TradeSummaryDTO summary = tradeService.getTradeSummary(userId, false);
         return ResponseEntity.ok(ApiResponse.success(summary));
+    }
+
+    /**
+     * 내 구매 상품 조회
+     */
+    @GetMapping("/me/purchases")
+    public ResponseEntity<ApiResponse<List<ProductSummaryDto>>> getMyPurchases(@AuthenticationPrincipal Long userId) {
+        List<ProductSummaryDto> purchases = tradeService.getMyPurchases(userId);
+        return ResponseEntity.ok(ApiResponse.success(purchases));
+    }
+
+    /**
+     * 내 판매 상품 조회
+     */
+    @GetMapping("/me/sales")
+    public ResponseEntity<ApiResponse<List<ProductSummaryDto>>> getMySales(@AuthenticationPrincipal String userId) {
+        List<ProductSummaryDto> sales = tradeService.getMySales(Long.valueOf(userId));
+        return ResponseEntity.ok(ApiResponse.success(sales));
+    }
+
+    /**
+     * 특정 유저 판매 상품 조회
+     */
+    @GetMapping("/users/{sellerId}/sales")
+    public ResponseEntity<ApiResponse<List<ProductSummaryDto>>> getUserSales(
+            @AuthenticationPrincipal String userId,
+            @PathVariable Long sellerId) {
+
+        // 로그인 안 한 경우 null 처리
+        Long loginUserId = null;
+        if (userId != null && !userId.equals("anonymousUser")) {
+            loginUserId = Long.valueOf(userId);
+        }
+
+        List<ProductSummaryDto> sales = tradeService.getUserSales(loginUserId, sellerId);
+        return ResponseEntity.ok(ApiResponse.success(sales));
     }
 }
