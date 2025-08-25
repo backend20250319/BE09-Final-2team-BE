@@ -1,5 +1,6 @@
 package com.momnect.productservice.command.dto.product;
 
+import com.momnect.productservice.command.entity.product.Product;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -20,4 +21,18 @@ public class ProductSummaryDto {
     private String productStatus;
     private String tradeStatus;
     private Boolean isDeleted;
+
+    public static ProductSummaryDto fromEntity(Product product, String thumbnailUrl, Boolean isLiked) {
+        return ProductSummaryDto.builder()
+                .id(product.getId())
+                .thumbnailUrl(thumbnailUrl)
+                .isLiked(isLiked)
+                .price(product.getPrice())
+                .emd(product.getTradeAreas().get(0).getArea().getName())
+                .createdAt(product.getCreatedAt())
+                .productStatus(product.getProductStatus().name())
+                .tradeStatus(product.getTradeStatus().name())
+                .isDeleted(product.getIsDeleted())
+                .build();
+    }
 }

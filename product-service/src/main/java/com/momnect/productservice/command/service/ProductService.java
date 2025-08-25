@@ -1,10 +1,13 @@
 package com.momnect.productservice.command.service;
 
 import com.momnect.productservice.command.client.FileClient;
+import com.momnect.productservice.command.client.UserClient;
 import com.momnect.productservice.command.client.dto.ImageFileDTO;
+import com.momnect.productservice.command.client.dto.UserDTO;
 import com.momnect.productservice.command.document.ProductDocument;
 import com.momnect.productservice.command.dto.image.ProductImageDTO;
 import com.momnect.productservice.command.dto.product.ProductDTO;
+import com.momnect.productservice.command.dto.product.ProductDetailDTO;
 import com.momnect.productservice.command.dto.product.ProductRequest;
 import com.momnect.productservice.command.dto.product.ProductSummaryDto;
 import com.momnect.productservice.command.entity.area.Area;
@@ -17,6 +20,7 @@ import com.momnect.productservice.command.entity.image.ProductImage;
 import com.momnect.productservice.command.entity.image.ProductImageId;
 import com.momnect.productservice.command.entity.product.Product;
 import com.momnect.productservice.command.entity.product.ProductCategory;
+import com.momnect.productservice.command.entity.product.TradeStatus;
 import com.momnect.productservice.command.entity.product.Wishlist;
 import com.momnect.productservice.command.repository.*;
 import com.momnect.productservice.common.ApiResponse;
@@ -33,6 +37,7 @@ import java.util.stream.Collectors;
 public class ProductService {
 
     private final FileClient fileClient;
+    private final UserClient userClient;
 
     private final ProductRepository productRepository;
     private final ProductCategoryRepository categoryRepository;
@@ -58,7 +63,7 @@ public class ProductService {
      * - 사용자가 로그인한 경우, 상품에 대한 찜 여부 확인 가능
      *
      * @param productIds 조회할 상품 ID 리스트
-     * @param userId 요청한 사용자 ID (로그인하지 않은 경우 null 가능)
+     * @param userId     요청한 사용자 ID (로그인하지 않은 경우 null 가능)
      * @return 상품 요약 정보를 담은 ProductSummaryDto 리스트
      */
     @Transactional(readOnly = true)
@@ -132,10 +137,68 @@ public class ProductService {
      * @return 상품 엔티티
      */
     @Transactional(readOnly = true)
-    public ProductDTO getProduct(Long productId) {
+    public ProductDetailDTO getProductDetail(Long productId) {
         // 엔티티 조회
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다. ID: " + productId));
+
+        // -- 판매 유저 조회 및 판매 유저의 최신 판매 상품 3개 조회 --
+        // 판매자 정보 조회 (UserClient)
+        Long sellerId = product.getSellerId();
+        ApiResponse<UserDTO> sellerResponse = userClient.getUserInfo(sellerId);
+        UserDTO sellerInfo = sellerResponse.getData();
+
+        // 판매자 거래횟수 조회
+        Integer tradeCount = productRepository.countByTradeStatusAndSellerIdOrBuyerId(TradeStatus.SOLD, sellerId, sellerId);
+        // 판매자 리뷰개수 조회
+        Integer reviewCount = 44;
+
+        sellerInfo.setTradeCount(tradeCount);
+        sellerInfo.setReviewCount(reviewCount);
+
+        // 판매자의 최신 상품 3개 조회
+        List<Product> sellerProducts = productRepository.findTop3BySellerIdOrderByCreatedAtDesc(sellerId);
+
+        // sellerRecentProducts 리스트에서 각 상품의 대표 이미지(썸네일) ID를 추출하여 Map으로 변환
+        // Map의 Key: 상품 ID, Value: 대표 이미지 ID (sortOrder가 가장 작은 이미지)
+        Map<Long, Long> productToThumbnailId = sellerProducts.stream()
+                .collect(Collectors.toMap(
+                        Product::getId,
+                        sellerProduct -> sellerProduct.getProductImages().stream()
+                                .min(Comparator.comparingInt(ProductImage::getSortOrder))
+                                .orElseThrow(() -> new IllegalStateException(
+                                        "상품에 이미지가 존재하지 않습니다. 상품ID: " + sellerProduct.getId()))
+                                .getId()
+                                .getImageFileId()
+                ));
+
+        String sellerProductImageIdsParam = productToThumbnailId.values().stream()
+                .map(String::valueOf)
+                .collect(Collectors.joining(","));
+        ApiResponse<List<ImageFileDTO>> sellerProductResponse = fileClient.getImageFilesByIds(sellerProductImageIdsParam);
+
+        // 3. ID → URL Map
+        Map<Long, String> sellerProductPaths = sellerProductResponse.getData().stream()
+                .collect(Collectors.toMap(ImageFileDTO::getId, ImageFileDTO::getPath));
+
+        List<ProductSummaryDto> latestProductDtos = sellerProducts.stream()
+                .map(sellerProduct -> {
+                    Long thumbnailId = productToThumbnailId.get(sellerProduct.getId());
+                    String thumbnailUrl = sellerProductPaths.get(thumbnailId);
+
+                    return ProductSummaryDto.builder()
+                            .id(sellerProduct.getId())
+                            .thumbnailUrl(toAbsoluteUrl(thumbnailUrl))
+                            .isLiked(false) // 필요시 세팅
+                            .price(sellerProduct.getPrice())
+                            .emd(sellerProduct.getTradeAreas().get(0).getArea().getName())
+                            .createdAt(sellerProduct.getCreatedAt())
+                            .productStatus(sellerProduct.getProductStatus().name())
+                            .tradeStatus(sellerProduct.getTradeStatus().name())
+                            .isDeleted(sellerProduct.getIsDeleted())
+                            .build();
+                })
+                .toList();
 
         // 이미지 파일 ID 리스트 추출
         List<Long> imageIds = product.getProductImages()
@@ -158,7 +221,12 @@ public class ProductService {
                 .collect(Collectors.toList());
 
 
-        return ProductDTO.fromEntity(product, images);
+        return ProductDetailDTO.builder()
+                .currentProduct(ProductDTO.fromEntity(product, images))
+                .sellerInfo(sellerInfo)
+                .sellerRecentProducts(latestProductDtos)
+                .build();
+
     }
 
     /***

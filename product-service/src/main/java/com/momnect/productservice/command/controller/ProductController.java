@@ -1,6 +1,6 @@
 package com.momnect.productservice.command.controller;
 
-import com.momnect.productservice.command.dto.product.ProductDTO;
+import com.momnect.productservice.command.dto.product.ProductDetailDTO;
 import com.momnect.productservice.command.dto.product.ProductRequest;
 import com.momnect.productservice.command.dto.product.ProductSummaryDto;
 import com.momnect.productservice.command.service.ProductService;
@@ -43,10 +43,10 @@ public class ProductController {
      * @return ProductDTO
      */
     @GetMapping("/{productId}")
-    public ResponseEntity<ApiResponse<ProductDTO>> getProduct(@PathVariable Long productId) {
+    public ResponseEntity<ApiResponse<ProductDetailDTO>> getProduct(@PathVariable Long productId) {
 
-        ProductDTO productDTO = productService.getProduct(productId);
-        return ResponseEntity.ok(ApiResponse.success(productDTO));
+        ProductDetailDTO productDetail = productService.getProductDetail(productId);
+        return ResponseEntity.ok(ApiResponse.success(productDetail));
     }
 
     /***
