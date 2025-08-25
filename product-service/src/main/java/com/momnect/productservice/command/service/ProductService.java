@@ -119,7 +119,7 @@ public class ProductService {
             return ProductSummaryDto.builder()
                     .id(product.getId())
                     .thumbnailUrl(thumbnailUrl)
-                    .isLiked(isLiked)
+                    .inWishlist(isLiked)
                     .price(product.getPrice())
                     .emd(emd)
                     .createdAt(product.getCreatedAt())
@@ -189,7 +189,7 @@ public class ProductService {
                     return ProductSummaryDto.builder()
                             .id(sellerProduct.getId())
                             .thumbnailUrl(toAbsoluteUrl(thumbnailUrl))
-                            .isLiked(false) // 필요시 세팅
+                            .inWishlist(false) // 필요시 세팅
                             .price(sellerProduct.getPrice())
                             .emd(sellerProduct.getTradeAreas().get(0).getArea().getName())
                             .createdAt(sellerProduct.getCreatedAt())

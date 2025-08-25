@@ -4,6 +4,7 @@ import com.momnect.productservice.command.entity.product.Product;
 import com.momnect.productservice.command.entity.product.TradeStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Collection;
 import java.util.List;
 
 public interface ProductRepository extends JpaRepository<Product, Long> {
@@ -15,5 +16,9 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     Integer countByTradeStatusAndSellerId(TradeStatus tradeStatus, Long userId);
 
     Integer countByTradeStatusAndBuyerId(TradeStatus tradeStatus, Long userId);
+
+    List<Product> findByTradeStatusAndBuyerId(TradeStatus tradeStatus, Long userId);
+
+    List<Product> findBySellerIdAndIsDeletedFalse(Long userId);
 }
 

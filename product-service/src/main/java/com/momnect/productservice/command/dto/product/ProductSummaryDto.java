@@ -14,7 +14,7 @@ public class ProductSummaryDto {
 
     private Long id;
     private String thumbnailUrl; // 대표 이미지 URL
-    private Boolean isLiked; // 찜 여부
+    private Boolean inWishlist; // 찜 여부
     private Integer price;
     private String emd; // 거래지역 읍면동
     private LocalDateTime createdAt;
@@ -26,7 +26,7 @@ public class ProductSummaryDto {
         return ProductSummaryDto.builder()
                 .id(product.getId())
                 .thumbnailUrl(thumbnailUrl)
-                .isLiked(isLiked)
+                .inWishlist(isLiked)
                 .price(product.getPrice())
                 .emd(product.getTradeAreas().get(0).getArea().getName())
                 .createdAt(product.getCreatedAt())
