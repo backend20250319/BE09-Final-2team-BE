@@ -64,7 +64,16 @@ public class ReviewService {
                 .map(this::convertToDtoWithSentiment)
                 .collect(Collectors.toList());
     }
-
+    /**
+     * 특정 사용자의 리뷰 목록을 조회합니다.
+     * @param userId 조회할 사용자의 ID
+     * @return 해당 사용자의 리뷰 목록 (DTO)
+     */
+    public List<ReviewResponse> getReviewsByUserId(Long userId) {
+        return reviewRepository.findByUserId(userId).stream()
+                .map(this::convertToDtoWithSentiment)
+                .collect(Collectors.toList());
+    }
     // 리뷰 통계
     public ReviewStatsResponse getReviewStats() {
         long positiveReviews = reviewSentimentRepository.countBySentiment("긍정적");
@@ -78,7 +87,14 @@ public class ReviewService {
 
         return new ReviewStatsResponse(averageRating, totalReviews, positiveReviews, negativeReviews);
     }
-
+    /**
+     * 특정 사용자의 총 리뷰 개수를 조회합니다.
+     * @param userId 조회할 사용자의 ID
+     * @return 해당 사용자의 총 리뷰 개수
+     */
+    public Integer getReviewCountByUserId(Long userId) {
+        return reviewRepository.countByUserId(userId);
+    }
     /**
      * 감정별 리뷰 요약글을 가져옵니다. 저장된 요약글이 있으면 반환하고, 없으면 새로 생성합니다.
      */
@@ -160,7 +176,7 @@ public class ReviewService {
             if (rank > 3) break; // 상위 3명만
             
             Long userId = (Long) stat[0];
-            String username = (String) stat[1];
+            String nickname = (String) stat[1];
             Long totalCount = (Long) stat[2];
             Double avgRating = (Double) stat[3];
             
@@ -171,7 +187,7 @@ public class ReviewService {
             
             UserRankingResponse ranking = new UserRankingResponse(
                 userId,
-                username != null ? username : "사용자" + userId,
+                nickname != null ? nickname : "사용자" + userId,
                 totalCount,
                 avgRating,
                 rank

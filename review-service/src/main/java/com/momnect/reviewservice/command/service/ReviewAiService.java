@@ -167,7 +167,6 @@ public class ReviewAiService {
                     String jsonResponse = (String) messageContent.get("content");
                     Map<String, String> result = objectMapper.readValue(jsonResponse, Map.class);
 
-                    // ✅ 요약 글자 수 제한 (50자 이내, 잘림 없음, "..." 없음)
                     if (result.containsKey("summary") && result.get("summary") != null) {
                         String summary = result.get("summary").trim();
                         if (summary.length() > 50) {
