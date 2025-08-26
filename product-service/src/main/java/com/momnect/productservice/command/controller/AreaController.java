@@ -21,6 +21,19 @@ public class AreaController {
 
     private final AreaService areaService;
 
+    /**
+     * 지역 정보 리스트 조회
+     * */
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<AreaDto>>> getAreasByIds(
+            @RequestParam("areaIds") List<Long> areaIds
+    ) {
+
+        List<AreaDto> areas = areaService.getAreasByIds(areaIds);
+        return ResponseEntity.ok(ApiResponse.success(areas));
+    }
+
+
     /***
      * 읍면동 검색
      *

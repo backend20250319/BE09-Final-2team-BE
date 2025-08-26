@@ -14,4 +14,7 @@ public interface AreaRepository extends JpaRepository<Area, Integer> {
 
     // 지역 코드 검색
     Optional<Area> findByCode(String code);
+
+    // 지역 ID 검색
+    List<Area> findByIdIn(List<Integer> ids);
 }

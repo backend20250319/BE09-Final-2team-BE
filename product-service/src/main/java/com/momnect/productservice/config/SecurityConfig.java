@@ -48,6 +48,7 @@ public class SecurityConfig {
                                         "/swagger-resources/**",
                                         "/areas/load",
                                         "/areas/search",
+                                        "/areas/**",
                                         "/categories/init",
                                         "/categories/tree"
                                 )

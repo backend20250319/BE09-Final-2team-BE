@@ -7,5 +7,6 @@ import lombok.Getter;
 @Builder
 public class AreaDto {
     private Integer id;
+    private String emd;
     private String fullName;
 }
