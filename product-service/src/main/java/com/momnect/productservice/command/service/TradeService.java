@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -232,6 +233,65 @@ public class TradeService {
                 .toList();
     }
 
+    /**
+     * 상품 판매 완료 처리
+     */
+    public void completeSale(Long productId, Long sellerId, Long buyerId) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다. ID: " + productId));
+
+        // 판매자 권한 체크
+        if (!product.getSellerId().equals(sellerId)) {
+            throw new IllegalStateException("판매자만 판매 완료 처리가 가능합니다.");
+        }
+
+        // 이미 판매 완료된 상품 체크
+        if (product.getTradeStatus() == TradeStatus.SOLD) {
+            throw new IllegalStateException("이미 판매 완료된 상품입니다.");
+        }
+
+        // 거래 상태 변경
+        LocalDateTime now = LocalDateTime.now();
+        product.setTradeStatus(TradeStatus.SOLD);
+        product.setBuyerId(buyerId);
+        product.setSoldAt(now);
+
+        // 업데이트 정보 갱신
+        product.setUpdatedAt(now);
+        product.setUpdatedBy(sellerId);
+
+        productRepository.save(product);
+    }
+
+
+    /**
+     * 상품 거래 상태 변경
+     */
+    @Transactional
+    public void updateTradeStatus(Long productId, Long userId, TradeStatus newStatus) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다. ID: " + productId));
+
+        // 이미 판매 완료된 상품은 상태 변경 불가
+        if (product.getTradeStatus() == TradeStatus.SOLD) {
+            throw new IllegalStateException("판매 완료된 상품은 상태를 변경할 수 없습니다.");
+        }
+
+        // 권한 체크: 판매자만 상태 변경 가능
+        if (!product.getSellerId().equals(userId)) {
+            throw new IllegalStateException("판매자만 상품 거래 상태를 변경할 수 있습니다.");
+        }
+
+        // 상태 변경
+        product.setTradeStatus(newStatus);
+
+        // 업데이트 정보 갱신
+        LocalDateTime now = LocalDateTime.now();
+        product.setUpdatedAt(now);
+        product.setUpdatedBy(userId);
+
+        productRepository.save(product);
+    }
 
     // 찜 여부 체크
     private Boolean inWishlist(Long productId, Long userId) {

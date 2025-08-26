@@ -3,6 +3,8 @@ package com.momnect.productservice.command.controller;
 import com.momnect.productservice.command.dto.product.ProductDetailDTO;
 import com.momnect.productservice.command.dto.product.ProductRequest;
 import com.momnect.productservice.command.dto.product.ProductSummaryDto;
+import com.momnect.productservice.command.dto.trade.CompleteSaleRequest;
+import com.momnect.productservice.command.dto.trade.TradeStatusRequest;
 import com.momnect.productservice.command.dto.trade.TradeSummaryDTO;
 import com.momnect.productservice.command.service.ProductService;
 import com.momnect.productservice.command.service.TradeService;
@@ -74,5 +76,33 @@ public class TradeController {
 
         List<ProductSummaryDto> sales = tradeService.getUserSales(loginUserId, sellerId);
         return ResponseEntity.ok(ApiResponse.success(sales));
+    }
+
+    /**
+     * 상품 판매 완료 처리
+     */
+    @PatchMapping("/{productId}/complete")
+    public ResponseEntity<ApiResponse<Void>> completeSale(
+            @PathVariable Long productId,
+            @RequestBody CompleteSaleRequest request,
+            @AuthenticationPrincipal String userId) {
+
+        tradeService.completeSale(productId, Long.valueOf(userId), request.getBuyerId());
+
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    /**
+     * 상품 거래 상태 변경
+     */
+    @PatchMapping("/{productId}/status")
+    public ResponseEntity<ApiResponse<Void>> updateTradeStatus(
+            @PathVariable Long productId,
+            @RequestBody TradeStatusRequest request,
+            @AuthenticationPrincipal String userId) {
+
+        tradeService.updateTradeStatus(productId, Long.valueOf(userId), request.getNewStatus());
+
+        return ResponseEntity.ok(ApiResponse.success(null));
     }
 }
