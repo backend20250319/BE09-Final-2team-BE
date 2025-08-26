@@ -12,12 +12,41 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class AreaService {
 
     private final AreaRepository areaRepository;
+
+    /**
+     * 지역 정보 리스트 조회
+     */
+    public List<AreaDto> getAreasByIds(List<Long> areaIds) {
+        if (areaIds == null || areaIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // Repository는 Integer 기반이므로 변환
+        List<Integer> ids = areaIds.stream()
+                .map(Long::intValue)
+                .toList();
+
+        List<Area> areas = areaRepository.findByIdIn(ids);
+
+        List<AreaDto> result = new ArrayList<>();
+        for (Area area : areas) {
+            String fullName = buildFullName(area);
+            result.add(AreaDto.builder()
+                    .id(area.getId())
+                    .emd(area.getName())
+                    .fullName(fullName)
+                    .build());
+        }
+
+        return result;
+    }
 
     /**
      * 읍면동 이름으로 검색 후 해당 Area 정보를 AreaDto 리스트로 반환
@@ -33,6 +62,7 @@ public class AreaService {
             String fullName = buildFullName(area);
             result.add(AreaDto.builder()
                     .id(area.getId())
+                    .emd(area.getName())
                     .fullName(fullName)
                     .build());
         }
