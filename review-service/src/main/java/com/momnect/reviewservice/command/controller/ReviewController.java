@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Map;
@@ -30,7 +31,23 @@ public class ReviewController {
         ReviewCountResponse response = new ReviewCountResponse(Math.toIntExact(count));
         return ResponseEntity.ok(response);
     }
-
+    // 신규 추가: 본인이 작성한 리뷰 총 개수 조회
+    // Principal 객체를 사용하여 현재 로그인한 사용자의 정보를 자동으로 가져옵니다.
+    @GetMapping("/my/count")
+    public ResponseEntity<ReviewCountResponse> getMyReviewCount(Principal principal) {
+        if (principal == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        try {
+            Long userId = Long.parseLong(principal.getName());
+            long count = reviewService.getReviewCountByUserId(userId);
+            ReviewCountResponse response = new ReviewCountResponse(Math.toIntExact(count));
+            return ResponseEntity.ok(response);
+        } catch (NumberFormatException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ReviewCountResponse(0)); // Or a more detailed error message
+        }
+    }
     // 특정 사용자의 전체 리뷰 내역을 조회하는 신규 엔드포인트
     @GetMapping("/users/{userId}")
     public ResponseEntity<ApiResponse<List<ReviewResponse>>> getReviewsByUserId(@PathVariable Long userId) {
