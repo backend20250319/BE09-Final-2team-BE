@@ -1,10 +1,7 @@
 package com.momnect.userservice.command.service;
 
-import com.momnect.userservice.command.dto.UserDTO;
-import com.momnect.userservice.command.dto.UpdateProfileRequest;
-import com.momnect.userservice.command.dto.ChangePasswordRequest;
-import com.momnect.userservice.command.dto.DeleteAccountRequest;
-import com.momnect.userservice.command.dto.PublicUserDTO;
+import com.momnect.userservice.command.client.ProductClient;
+import com.momnect.userservice.command.dto.*;
 import com.momnect.userservice.command.entity.User;
 import com.momnect.userservice.command.mapper.UserMapper;
 import com.momnect.userservice.command.repository.UserRepository;
@@ -16,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -25,6 +23,38 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
+    private final ChildService childService;
+    private final ProductClient productClient; // Feign Client 주입
+    //private final ReviewServiceClient reviewServiceClient;   // Feign Client 주입
+
+    /**
+     * 마이페이지 대시보드 정보 조회
+     */
+    @Transactional(readOnly = true)
+    public MypageDTO getMypageDashboard(Long userId) {
+        // 1. 프로필 정보 조회
+        PublicUserDTO profileInfo = getPublicUserProfile(userId);
+
+        // 2. 자녀 정보 조회
+        List<ChildDTO> children = childService.getChildren(userId); // 주입받은 인스턴스 사용
+
+        // 3. 거래 현황 조회 (상품 서비스 연동)
+        // Feign Client를 사용해 상품 서비스의 API 연동
+        TransactionSummaryDTO transactionSummary = productClient
+                .getMyTransactionSummary(userId)
+                .getData();
+
+        // 4. 리뷰 개수 조회 (리뷰 서비스 연동) (리뷰 서비스 연동 - TODO: API 구현 후 활성화)
+//        int reviewCount = reviewServiceClient.getMyReviewCount(userId).getData();
+//        transactionSummary.setReviewCount(reviewCount);
+
+        // MypageDTO를 빌더 패턴으로 생성하여 반환
+        return MypageDTO.builder()
+                .profileInfo(profileInfo)
+                .childList(children)
+                .transactionSummary(transactionSummary)
+                .build();
+    }
 
     /**
      * 1. 프로필 수정 (닉네임, 이메일, 휴대폰번호만)

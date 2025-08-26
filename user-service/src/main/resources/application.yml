@@ -24,6 +24,17 @@ spring:
     properties:
       hibernate:
         format_sql: true
+  # 여기에 feign 설정을 추가
+  feign:
+    client:
+      config:
+        default:
+          connectTimeout: 5000
+          readTimeout: 5000
+      product-service:
+        url: http://localhost:8000/api/v1/product-service
+      review-service:
+        url: http://localhost:8000/api/v1/review-service
 
 # swagger
 springdoc:
