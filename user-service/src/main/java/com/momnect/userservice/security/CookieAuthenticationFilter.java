@@ -3,7 +3,6 @@ package com.momnect.userservice.security;
 import com.momnect.userservice.jwt.JwtTokenProvider;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -19,8 +18,7 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * 쿠키 기반 JWT 인증 필터
- * UsernamePasswordAuthenticationToken 사용
+ * JWT 기반 인증 필터 (Authorization 헤더)
  */
 @Component
 @Slf4j
@@ -36,60 +34,33 @@ public class CookieAuthenticationFilter extends OncePerRequestFilter {
             @NonNull FilterChain filterChain
     ) throws ServletException, IOException {
 
-        // 1. 헤더 방식 우선 확인 (Gateway에서 온 요청)
-        String userId = request.getHeader("X-User-Id");
-        String role = request.getHeader("X-User-Role");
+        // 1. Authorization 헤더에서 토큰 추출
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String accessToken = authHeader.substring(7);
+            if (jwtTokenProvider.validateToken(accessToken)) {
+                String userId = String.valueOf(jwtTokenProvider.getUserIdFromToken(accessToken));
+                String role = jwtTokenProvider.getRoleFromToken(accessToken);
 
-        if (userId != null && role != null) {
-            log.debug("[CookieAuthenticationFilter] Header auth - userId: {}, role: {}", userId, role);
-            setAuthentication(userId, role);
-        } else {
-            // 2. 쿠키 방식 확인 (직접 접근)
-            String accessToken = extractTokenFromCookie(request, "accessToken");
+                log.debug("[AuthenticationFilter] Authenticated user - userId: {}, role: {}", userId, role);
 
-            if (accessToken != null && jwtTokenProvider.validateToken(accessToken)) {
-                Long userIdFromToken = jwtTokenProvider.getUserIdFromToken(accessToken);
-                String roleFromToken = jwtTokenProvider.getRoleFromToken(accessToken);
-
-                log.debug("[CookieAuthenticationFilter] Cookie auth - userId: {}, role: {}",
-                        userIdFromToken, roleFromToken);
+                // Spring Security 인증 설정
+                UsernamePasswordAuthenticationToken authentication =
+                        new UsernamePasswordAuthenticationToken(
+                                userId,
+                                null,
+                                List.of(new SimpleGrantedAuthority("ROLE_" + role))
+                        );
+                SecurityContextHolder.getContext().setAuthentication(authentication);
 
                 // 다른 부분에서 사용할 수 있도록 request에 추가
-                request.setAttribute("X-User-Id", userIdFromToken.toString());
-                request.setAttribute("X-User-Role", roleFromToken);
-
-                setAuthentication(userIdFromToken.toString(), roleFromToken);
+                request.setAttribute("X-User-Id", userId);
+                request.setAttribute("X-User-Role", role);
             }
+        } else {
+            log.debug("[AuthenticationFilter] No Authorization header found or invalid format.");
         }
 
         filterChain.doFilter(request, response);
-    }
-
-    /**
-     * 쿠키에서 토큰 추출
-     */
-    private String extractTokenFromCookie(@NonNull HttpServletRequest request, @NonNull String cookieName) {
-        Cookie[] cookies = request.getCookies();
-        if (cookies != null) {
-            for (Cookie cookie : cookies) {
-                if (cookieName.equals(cookie.getName())) {
-                    return cookie.getValue();
-                }
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Spring Security 인증 설정
-     */
-    private void setAuthentication(String userId, String role) {
-        UsernamePasswordAuthenticationToken authentication =
-                new UsernamePasswordAuthenticationToken(
-                        userId,
-                        null,
-                        List.of(new SimpleGrantedAuthority("ROLE_" + role))
-                );
-        SecurityContextHolder.getContext().setAuthentication(authentication);
     }
 }
