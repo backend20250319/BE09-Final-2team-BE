@@ -1,9 +1,6 @@
 package com.momnect.productservice.command.controller;
 
-import com.momnect.productservice.command.dto.product.ProductDetailDTO;
-import com.momnect.productservice.command.dto.product.ProductRequest;
-import com.momnect.productservice.command.dto.product.ProductSearchRequest;
-import com.momnect.productservice.command.dto.product.ProductSummaryDto;
+import com.momnect.productservice.command.dto.product.*;
 import com.momnect.productservice.command.service.ProductService;
 import com.momnect.productservice.common.ApiResponse;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +19,17 @@ import java.util.Map;
 public class ProductController {
 
     private final ProductService productService;
+
+
+    /***
+     * 홈 일괄 섹션 (선택)
+     */
+    @GetMapping("/sections")
+    public ResponseEntity<ApiResponse<ProductSectionsResponse>> getHomeProductSections(
+            @AuthenticationPrincipal String userId) {
+        ProductSectionsResponse sections = productService.getHomeProductSections(Long.valueOf(userId));
+        return ResponseEntity.ok(ApiResponse.success(sections));
+    }
 
     /***
      * 상품 검색/브라우즈 API (ES 기반)
