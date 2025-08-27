@@ -12,6 +12,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.momnect.userservice.command.mapper.UserMapper;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -265,6 +267,43 @@ public class AuthService {
             if (request.getLoginId() == null || request.getLoginId().trim().isEmpty()) {
                 throw new IllegalArgumentException("비밀번호 재설정 시 아이디는 필수입니다");
             }
+        }
+    }
+
+    /**
+     * JWT 토큰 검증 (WebSocket 인증용)
+     */
+    public UserValidationResponse validateToken(String token) {
+        try {
+            // JWT 토큰 검증
+            if (!jwtTokenProvider.validateToken(token)) {
+                return new UserValidationResponse(false, null, null, null);
+            }
+
+            // 토큰에서 사용자 ID 추출
+            Long userId = jwtTokenProvider.getUserIdFromToken(token);
+            
+            // 사용자 조회
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다"));
+
+            if (user.getIsDeleted()) {
+                return new UserValidationResponse(false, null, null, null);
+            }
+
+            // 사용자 역할 정보 (기본값: USER)
+            List<String> roles = List.of("USER");
+
+            return new UserValidationResponse(
+                true, 
+                userId.toString(), 
+                user.getName(), 
+                roles
+            );
+
+        } catch (Exception e) {
+            log.error("Token validation failed", e);
+            return new UserValidationResponse(false, null, null, null);
         }
     }
 }
