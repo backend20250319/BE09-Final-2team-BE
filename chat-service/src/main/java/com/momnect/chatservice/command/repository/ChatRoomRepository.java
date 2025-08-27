@@ -6,7 +6,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
-@Repository
+@Repository("chatRoomRepository")
 public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
 
     // 구매자/판매자 기준 방 조회

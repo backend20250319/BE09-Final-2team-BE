@@ -1,5 +1,8 @@
 package com.momnect.chatservice.command.service;
 
+import com.momnect.chatservice.command.client.UserServiceClient;
+import com.momnect.chatservice.command.client.dto.UserBasicInfoResponse;
+import com.momnect.chatservice.command.client.dto.ApiResponse;
 import com.momnect.chatservice.command.dto.room.ChatRoomCreateRequest;
 import com.momnect.chatservice.command.dto.room.ChatRoomParticipantResponse;
 import com.momnect.chatservice.command.dto.room.ChatRoomResponse;
@@ -11,6 +14,7 @@ import com.momnect.chatservice.command.repository.ChatMessageRepository;
 import com.momnect.chatservice.command.repository.ChatParticipantRepository;
 import com.momnect.chatservice.command.repository.ChatRoomRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +23,7 @@ import java.time.ZoneId;
 import java.util.Comparator;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ChatRoomService {
@@ -26,13 +31,14 @@ public class ChatRoomService {
     private final ChatRoomRepository chatRoomRepository;
     private final ChatParticipantRepository participantRepository;
     private final ChatMessageRepository messageRepository;
+    private final UserServiceClient userServiceClient;
 
     /** 방 생성(상품별 1:1 방 중복 방지) */
     @Transactional
     public ChatRoomResponse createRoom(ChatRoomCreateRequest req) {
         ChatRoom existed = chatRoomRepository
                 .findFirstByBuyerIdAndSellerIdAndProductId(req.getBuyerId(), req.getSellerId(), req.getProductId());
-        if (existed != null) return toResponse(existed);
+        if (existed != null) return toResponse(existed, false);
 
         ChatRoom room = ChatRoom.builder()
                 .productId(req.getProductId())
@@ -58,7 +64,7 @@ public class ChatRoomService {
                 .lastReadAt(LocalDateTime.now())
                 .build());
 
-        return toResponse(saved);
+        return toResponse(saved, true);
     }
 
     /** 내가 참여한 방 목록(최근 메시지 기준 정렬) */
@@ -69,18 +75,12 @@ public class ChatRoomService {
         return parts.stream()
                 .map(p -> {
                     Long roomId = p.getChatRoomId();
-                    ChatMessage last = messageRepository.findTopByChatRoomIdOrderBySentAtDesc(roomId);
-
-                    // 응답 DTO가 LocalDateTime(KST)라면 변환
-                    LocalDateTime lastSentAtKst = null;
-                    if (last != null && last.getSentAt() != null) {
-                        lastSentAtKst = LocalDateTime.ofInstant(last.getSentAt(), ZoneId.of("Asia/Seoul"));
-                    }
+                    ChatMessage last = messageRepository.findTopByRoomIdOrderBySentAtDesc(roomId.toString());
 
                     return ChatRoomSummaryResponse.builder()
                             .roomId(roomId)
-                            .lastMessage(last != null ? last.getMessage() : null)
-                            .lastSentAt(lastSentAtKst)   // DTO 필드 타입이 LocalDateTime이라면 그대로
+                            .lastMessage(last != null ? last.getContent() : null)
+                            .lastSentAt(last != null ? last.getSentAt() : null)
                             .unreadCount(p.getUnreadCount())
                             .build();
                 })
@@ -95,12 +95,35 @@ public class ChatRoomService {
     @Transactional(readOnly = true)
     public List<ChatRoomParticipantResponse> getParticipants(Long roomId) {
         return participantRepository.findByChatRoomId(roomId).stream()
-                .map(p -> ChatRoomParticipantResponse.builder()
-                        .id(p.getId())
-                        .userId(p.getUserId())
-                        .unreadCount(p.getUnreadCount())
-                        .lastReadAt(p.getLastReadAt())
-                        .build())
+                .map(p -> {
+                    try {
+                        // User Service에서 사용자 정보 가져오기
+                        ApiResponse<UserBasicInfoResponse> response = userServiceClient.getUserBasicInfo(p.getUserId());
+                        
+                        if (response != null && response.isSuccess() && response.getData() != null) {
+                            UserBasicInfoResponse userInfo = response.getData();
+                            
+                            return ChatRoomParticipantResponse.builder()
+                                    .id(p.getId())
+                                    .userId(p.getUserId())
+                                    .nickname(userInfo.getNickname())
+                                    .unreadCount(p.getUnreadCount())
+                                    .lastReadAt(p.getLastReadAt())
+                                    .build();
+                        } else {
+                            throw new RuntimeException("Failed to get user info - API response is null or unsuccessful");
+                        }
+                    } catch (Exception e) {
+                        // 에러 발생 시 기본 정보만 반환
+                        return ChatRoomParticipantResponse.builder()
+                                .id(p.getId())
+                                .userId(p.getUserId())
+                                .nickname("사용자")
+                                .unreadCount(p.getUnreadCount())
+                                .lastReadAt(p.getLastReadAt())
+                                .build();
+                    }
+                })
                 .toList();
     }
 
@@ -109,16 +132,23 @@ public class ChatRoomService {
     public ChatRoomResponse getRoom(Long roomId) {
         ChatRoom room = chatRoomRepository.findById(roomId)
                 .orElseThrow(() -> new IllegalArgumentException("ChatRoom not found: " + roomId));
-        return toResponse(room);
+        return toResponse(room, false);
     }
 
-    private ChatRoomResponse toResponse(ChatRoom r) {
+    /** 참여자 확인 */
+    @Transactional(readOnly = true)
+    public boolean isParticipant(Long roomId, Long userId) {
+        return participantRepository.findFirstByChatRoomIdAndUserId(roomId, userId) != null;
+    }
+
+    private ChatRoomResponse toResponse(ChatRoom r, boolean isNew) {
         return ChatRoomResponse.builder()
                 .id(r.getId())
                 .productId(r.getProductId())
                 .buyerId(r.getBuyerId())
                 .sellerId(r.getSellerId())
                 .createdAt(r.getCreatedAt())
+                .isNew(isNew)
                 .build();
     }
 }

@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 public class ChatRoomParticipantResponse {
     private Long id;
     private Long userId;
+    private String nickname;
     private int unreadCount;
     private LocalDateTime lastReadAt;
 }
