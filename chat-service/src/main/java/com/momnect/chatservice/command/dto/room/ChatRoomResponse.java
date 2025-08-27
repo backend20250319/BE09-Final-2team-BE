@@ -11,4 +11,5 @@ public class ChatRoomResponse {
     private Long buyerId;
     private Long sellerId;
     private LocalDateTime createdAt;
+    private Boolean isNew; // 새로 생성된 채팅방인지 여부
 }
