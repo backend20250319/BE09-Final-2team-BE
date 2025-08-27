@@ -2,6 +2,7 @@ package com.momnect.productservice.command.controller;
 
 import com.momnect.productservice.command.dto.product.ProductDetailDTO;
 import com.momnect.productservice.command.dto.product.ProductRequest;
+import com.momnect.productservice.command.dto.product.ProductSectionsResponse;
 import com.momnect.productservice.command.dto.product.ProductSummaryDto;
 import com.momnect.productservice.command.service.ProductService;
 import com.momnect.productservice.common.ApiResponse;
@@ -21,8 +22,18 @@ public class ProductController {
     private final ProductService productService;
 
     /***
+     * 홈 일괄 섹션 (선택)
+     */
+    @GetMapping("/sections")
+    public ResponseEntity<ApiResponse<ProductSectionsResponse>> getHomeProductSections(
+            @AuthenticationPrincipal String userId) {
+        ProductSectionsResponse sections = productService.getHomeProductSections(Long.valueOf(userId));
+        return ResponseEntity.ok(ApiResponse.success(sections));
+    }
+
+    /***
      * 상품 요약 리스트 조회 API
-     * ex) /products/summary?ids=1,2,3
+     * ex) /products/summary?productIds=1,2,3
      *
      * @param productIds 조회할 상품 ID 리스트
      * @param userId 요청한 사용자 ID (로그인하지 않은 경우 null)

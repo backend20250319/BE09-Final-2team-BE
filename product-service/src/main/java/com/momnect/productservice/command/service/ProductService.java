@@ -2,14 +2,12 @@ package com.momnect.productservice.command.service;
 
 import com.momnect.productservice.command.client.FileClient;
 import com.momnect.productservice.command.client.UserClient;
+import com.momnect.productservice.command.client.dto.ChildDTO;
 import com.momnect.productservice.command.client.dto.ImageFileDTO;
 import com.momnect.productservice.command.client.dto.UserDTO;
 import com.momnect.productservice.command.document.ProductDocument;
 import com.momnect.productservice.command.dto.image.ProductImageDTO;
-import com.momnect.productservice.command.dto.product.ProductDTO;
-import com.momnect.productservice.command.dto.product.ProductDetailDTO;
-import com.momnect.productservice.command.dto.product.ProductRequest;
-import com.momnect.productservice.command.dto.product.ProductSummaryDto;
+import com.momnect.productservice.command.dto.product.*;
 import com.momnect.productservice.command.entity.area.Area;
 import com.momnect.productservice.command.entity.area.ProductTradeArea;
 import com.momnect.productservice.command.entity.area.ProductTradeAreaId;
@@ -18,17 +16,17 @@ import com.momnect.productservice.command.entity.hashtag.ProductHashtag;
 import com.momnect.productservice.command.entity.hashtag.ProductHashtagId;
 import com.momnect.productservice.command.entity.image.ProductImage;
 import com.momnect.productservice.command.entity.image.ProductImageId;
-import com.momnect.productservice.command.entity.product.Product;
-import com.momnect.productservice.command.entity.product.ProductCategory;
-import com.momnect.productservice.command.entity.product.TradeStatus;
-import com.momnect.productservice.command.entity.product.Wishlist;
+import com.momnect.productservice.command.entity.product.*;
 import com.momnect.productservice.command.repository.*;
 import com.momnect.productservice.common.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -55,6 +53,188 @@ public class ProductService {
     private String toAbsoluteUrl(String relativePath) {
         if (relativePath == null || relativePath.isEmpty()) return null;
         return ftpBaseUrl + relativePath;
+    }
+
+    // ====================== 홈 섹션 ======================
+    public ProductSectionsResponse getHomeProductSections(Long userId) {
+        List<ProductSummaryDto> popular = getPopularTop30(userId);
+        List<ProductSummaryDto> latest = getNewTop30(userId);
+        List<ProductSummaryDto> recommended = getRecommendedTop30(userId);
+
+//        List<ProductSummaryDto> popular = new ArrayList<>();
+//        List<ProductSummaryDto> latest = new ArrayList<>();
+//        List<ProductSummaryDto> recommended = new ArrayList<>();
+
+        return ProductSectionsResponse.builder()
+                .popular(popular)
+                .latest(latest)
+                .recommended(recommended)
+                .build();
+    }
+
+    /**
+     * 인기상품: viewCount DESC, createdAt DESC
+     */
+    public List<ProductSummaryDto> getPopularTop30(Long userId) {
+        List<Product> products =
+                productRepository.findTop30ByIsDeletedFalseAndTradeStatusNotOrderByViewCountDescCreatedAtDesc(TradeStatus.SOLD);
+        return toSummaries(products, userId);
+    }
+
+    /**
+     * 신규상품: createdAt DESC
+     */
+    public List<ProductSummaryDto> getNewTop30(Long userId) {
+        List<Product> products =
+                productRepository.findTop30ByIsDeletedFalseAndTradeStatusNotOrderByCreatedAtDesc(TradeStatus.SOLD);
+        return toSummaries(products, userId);
+    }
+
+    /**
+     * 추천상품
+     * - userId가 있으면 자녀 연령대(복수)를 계산해 해당 버킷의 상품을 모아 상위 30개 반환
+     * - 없거나 자녀정보가 없으면 기존 "찜수 TOP N → 인기 Top30" 로직 유지
+     */
+    public List<ProductSummaryDto> getRecommendedTop30(Long userId) {
+        // 1) userId 있으면 자녀정보로 연령대 버킷 수집 (별도 함수 없이 이 메서드 안에서 처리)
+        Set<RecommendedAge> ageBuckets = new HashSet<>();
+        if (userId != null) {
+            try {
+                ApiResponse<List<ChildDTO>> resp = userClient.getChildren();
+
+                List<ChildDTO> children =
+                        Optional.ofNullable(resp)
+                                .map(com.momnect.productservice.common.ApiResponse::getData)
+                                .orElse(java.util.Collections.emptyList());
+
+                System.out.println("children: " + children);
+
+                LocalDate today = java.time.LocalDate.now();
+                for (var child : children) {
+                    LocalDate birthDate = child.getBirthDate();
+                    long months = ChronoUnit.MONTHS.between(birthDate, today);
+                    long years = ChronoUnit.YEARS.between(birthDate, today);
+                    if (months >= 0) {
+                        if (months < 6) ageBuckets.add(RecommendedAge.MONTH_0_6);
+                        else if (months < 12) ageBuckets.add(RecommendedAge.MONTH_6_12);
+                        else if (years < 2) ageBuckets.add(RecommendedAge.YEAR_1_2);
+                        else if (years < 4) ageBuckets.add(RecommendedAge.YEAR_2_4);
+                        else if (years < 6) ageBuckets.add(RecommendedAge.YEAR_4_6);
+                        else if (years < 8) ageBuckets.add(RecommendedAge.YEAR_6_8);
+                        else ageBuckets.add(RecommendedAge.OVER_8);
+                    }
+                }
+            } catch (Exception ignore) {
+                // 유저서비스 실패 시 필터 없이 아래 랭킹 로직으로 폴백
+            }
+        }
+
+        // ageBuckets가 비어있지 않은 경우
+        if (!ageBuckets.isEmpty()) {
+            System.out.println("자녀 추천 -- ageBuckets: " + ageBuckets);
+
+            // IN 한 번에 조회 (DB에서 createdAt DESC → viewCount DESC 정렬까지 처리)
+            List<Product> candidates =
+                    productRepository.findTop100ByIsDeletedFalseAndTradeStatusNotAndRecommendedAgeInOrderByCreatedAtDescViewCountDesc(
+                            TradeStatus.SOLD, ageBuckets
+                    );
+
+            // 안전 필터 + 상위 30개만
+            List<Product> top30 = candidates.stream()
+                    .filter(p -> !Boolean.TRUE.equals(p.getIsDeleted()) && p.getTradeStatus() != TradeStatus.SOLD)
+                    .limit(30)
+                    .toList();
+
+            return toSummaries(top30, userId);
+        }
+
+        // 3) 기존 랭킹 로직 (찜수 TOP N → 인기 Top30)
+        java.util.List<Long> topLikeIds = wishlistRepository.findTopProductIdsByLikeCount(org.springframework.data.domain.PageRequest.of(0, 30));
+        if (!topLikeIds.isEmpty()) {
+            java.util.List<Product> likeRanked = productRepository.findByIdIn(topLikeIds).stream()
+                    .filter(p -> !java.lang.Boolean.TRUE.equals(p.getIsDeleted()) && p.getTradeStatus() != TradeStatus.SOLD)
+                    .toList();
+
+            java.util.Map<Long, Integer> order = new java.util.HashMap<>();
+            for (int i = 0; i < topLikeIds.size(); i++) order.put(topLikeIds.get(i), i);
+
+            likeRanked = new java.util.ArrayList<>(likeRanked);
+            likeRanked.sort(java.util.Comparator.comparingInt(p -> order.getOrDefault(p.getId(), Integer.MAX_VALUE)));
+
+            return toSummaries(likeRanked, userId);
+        }
+
+        // fallback → 인기 Top30
+        return getPopularTop30(userId);
+    }
+
+
+    private List<ProductSummaryDto> toSummaries(List<Product> products, Long userId) {
+        if (products == null || products.isEmpty()) return List.of();
+
+        // (1) 유저 찜 여부 일괄 조회
+        Set<Long> likedIds;
+        if (userId != null) {
+            List<Long> ids = products.stream().map(Product::getId).toList();
+            likedIds = wishlistRepository.findAllByUserIdAndProductIdIn(userId, ids).stream()
+                    .map(w -> w.getProduct().getId())
+                    .collect(Collectors.toSet());
+        } else {
+            likedIds = Collections.emptySet();
+        }
+
+        // (2) 썸네일 URL 배치 로딩 (productId -> url)
+        Map<Long, String> thumbUrlByProductId = fetchThumbnailUrlByProductId(products);
+
+        // (3) DTO 변환
+        return products.stream()
+                .map(p -> ProductSummaryDto.fromEntity(
+                        p,
+                        thumbUrlByProductId.get(p.getId()),
+                        userId != null && likedIds.contains(p.getId())
+                ))
+                .toList();
+    }
+
+    private Map<Long, String> fetchThumbnailUrlByProductId(List<Product> products) {
+        // 1) productId -> 대표 이미지 fileId(최소 sortOrder) 추출
+        Map<Long, Long> productToFileId = new HashMap<>();
+        for (Product p : products) {
+            if (p.getProductImages() == null || p.getProductImages().isEmpty()) continue;
+
+            p.getProductImages().stream()
+                    .min(Comparator.comparingInt(ProductImage::getSortOrder))
+                    .ifPresent(img -> productToFileId.put(p.getId(), img.getId().getImageFileId()));
+        }
+        if (productToFileId.isEmpty()) return Collections.emptyMap();
+
+        // 2) FileClient 배치 호출
+        String idsParam = productToFileId.values().stream()
+                .distinct()
+                .map(String::valueOf)
+                .collect(Collectors.joining(","));
+
+        ApiResponse<List<ImageFileDTO>> resp = fileClient.getImageFilesByIds(idsParam);
+
+        // 3) imageFileId -> 절대경로 URL 매핑
+        Map<Long, String> fileIdToAbsUrl = new HashMap<>();
+        if (resp != null && resp.getData() != null) {
+            for (ImageFileDTO dto : resp.getData()) {
+                fileIdToAbsUrl.put(dto.getId(), toAbsoluteUrl(dto.getPath()));
+            }
+        }
+
+        // 4) productId -> 썸네일 URL 매핑으로 변환
+        Map<Long, String> result = new HashMap<>();
+        for (Map.Entry<Long, Long> e : productToFileId.entrySet()) {
+            result.put(e.getKey(), fileIdToAbsUrl.get(e.getValue())); // 없으면 null
+        }
+        return result;
+    }
+
+
+    private <T> List<T> limit(List<T> list, int n) {
+        return list.size() <= n ? list : list.subList(0, n);
     }
 
     /**
@@ -113,20 +293,7 @@ public class ProductService {
 
             Boolean isLiked = likedMap.getOrDefault(product.getId(), false);
 
-            // 읍면동
-            String emd = product.getTradeAreas().get(0).getArea().getName();
-
-            return ProductSummaryDto.builder()
-                    .id(product.getId())
-                    .thumbnailUrl(thumbnailUrl)
-                    .inWishlist(isLiked)
-                    .price(product.getPrice())
-                    .emd(emd)
-                    .createdAt(product.getCreatedAt())
-                    .productStatus(product.getProductStatus().name())
-                    .tradeStatus(product.getTradeStatus().name())
-                    .isDeleted(product.getIsDeleted())
-                    .build();
+            return ProductSummaryDto.fromEntity(product, thumbnailUrl, isLiked);
         }).toList();
     }
 
@@ -186,17 +353,7 @@ public class ProductService {
                     Long thumbnailId = productToThumbnailId.get(sellerProduct.getId());
                     String thumbnailUrl = sellerProductPaths.get(thumbnailId);
 
-                    return ProductSummaryDto.builder()
-                            .id(sellerProduct.getId())
-                            .thumbnailUrl(toAbsoluteUrl(thumbnailUrl))
-                            .inWishlist(false) // 필요시 세팅
-                            .price(sellerProduct.getPrice())
-                            .emd(sellerProduct.getTradeAreas().get(0).getArea().getName())
-                            .createdAt(sellerProduct.getCreatedAt())
-                            .productStatus(sellerProduct.getProductStatus().name())
-                            .tradeStatus(sellerProduct.getTradeStatus().name())
-                            .isDeleted(sellerProduct.getIsDeleted())
-                            .build();
+                    return ProductSummaryDto.fromEntity(product, thumbnailUrl, false);
                 })
                 .toList();
 
