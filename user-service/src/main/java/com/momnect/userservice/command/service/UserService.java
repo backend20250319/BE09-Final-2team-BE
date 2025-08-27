@@ -57,6 +57,30 @@ public class UserService {
     }
 
     /**
+     * 거래 현황 요약 정보 조회 (상품 서비스 연동)
+     */
+    @Transactional(readOnly = true)
+    public TransactionSummaryDTO getTransactionSummary(Long userId) {
+        return productClient.getMyTransactionSummary(userId).getData();
+    }
+
+    /**
+     * 구매 상품 목록 조회 (상품 서비스 연동)
+     */
+    @Transactional(readOnly = true)
+    public List<ProductSummaryDTO> getPurchasedProducts(Long userId) {
+        return productClient.getMyPurchases(userId).getData();
+    }
+
+    /**
+     * 판매 상품 목록 조회 (상품 서비스 연동)
+     */
+    @Transactional(readOnly = true)
+    public List<ProductSummaryDTO> getSoldProducts(Long userId) {
+        return productClient.getMySales(userId).getData();
+    }
+
+    /**
      * 1. 프로필 수정 (닉네임, 이메일, 휴대폰번호만)
      */
     public UserDTO updateProfile(Long userId, UpdateProfileRequest request) {

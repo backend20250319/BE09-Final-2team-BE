@@ -55,9 +55,9 @@ public class UserController {
 
         // 3. 거래 현황 조회 (상품 서비스 및 리뷰 서비스 연동)
         // TODO: Feign Client를 통해 실제 거래 현황 데이터로 교체
-        TransactionSummaryDTO transactionSummary = new TransactionSummaryDTO(); // 임시 DTO 생성
-        transactionSummary.setTotalSalesCount(0);
-        transactionSummary.setPurchaseCount(0);
+        TransactionSummaryDTO transactionSummary = userService.getTransactionSummary(userId);
+
+        // 리뷰 서비스가 아직 없으므로 임시로 0 설정
         transactionSummary.setReviewCount(0);
 
         MypageDTO dashboardInfo = MypageDTO.builder()
@@ -67,6 +67,28 @@ public class UserController {
                 .build();
 
         return ResponseEntity.ok(ApiResponse.success(dashboardInfo));
+    }
+
+    /**
+     * 구매 상품 목록 조회 (상품 서비스 연동)
+     */
+    @Operation(summary = "구매 상품 목록 조회", description = "사용자가 구매한 상품 목록을 조회합니다.")
+    @GetMapping("/me/products/purchased")
+    public ResponseEntity<ApiResponse<List<ProductSummaryDTO>>> getPurchasedProducts(HttpServletRequest request) {
+        Long userId = getUserIdFromRequest(request);
+        List<ProductSummaryDTO> products = userService.getPurchasedProducts(userId);
+        return ResponseEntity.ok(ApiResponse.success(products));
+    }
+
+    /**
+     * 판매 상품 목록 조회 (상품 서비스 연동)
+     */
+    @Operation(summary = "판매 상품 목록 조회", description = "사용자가 판매한 상품 목록을 조회합니다.")
+    @GetMapping("/me/products/sold")
+    public ResponseEntity<ApiResponse<List<ProductSummaryDTO>>> getSoldProducts(HttpServletRequest request) {
+        Long userId = getUserIdFromRequest(request);
+        List<ProductSummaryDTO> products = userService.getSoldProducts(userId);
+        return ResponseEntity.ok(ApiResponse.success(products));
     }
 
     /**
