@@ -1,5 +1,11 @@
 package com.momnect.productservice.command.service;
 
+import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.SortOrder;
+import co.elastic.clients.elasticsearch._types.query_dsl.BoolQuery;
+import co.elastic.clients.elasticsearch._types.query_dsl.NumberRangeQuery;
+import co.elastic.clients.elasticsearch.core.SearchResponse;
+import co.elastic.clients.elasticsearch.core.search.Hit;
 import com.momnect.productservice.command.client.FileClient;
 import com.momnect.productservice.command.client.UserClient;
 import com.momnect.productservice.command.client.dto.ChildDTO;
@@ -21,10 +27,13 @@ import com.momnect.productservice.command.repository.*;
 import com.momnect.productservice.common.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -40,11 +49,12 @@ public class ProductService {
     private final ProductRepository productRepository;
     private final ProductCategoryRepository categoryRepository;
     private final ProductImageRepository productImageRepository;
-    private final ProductSearchRepository searchRepository;
     private final AreaRepository areaRepository;
     private final ProductTradeAreaRepository productTradeAreaRepository;
     private final HashtagRepository hashtagRepository;
     private final WishlistRepository wishlistRepository;
+
+    private final ElasticsearchClient esClient;
 
 
     @Value("${ftp.base-url}")
@@ -237,6 +247,63 @@ public class ProductService {
         return list.size() <= n ? list : list.subList(0, n);
     }
 
+    public Page<ProductSummaryDto> searchProducts(ProductSearchRequest request) throws IOException {
+        int page = request.getPage() != null ? request.getPage() : 0;
+        int size = request.getSize() != null ? request.getSize() : 20;
+
+        // BoolQuery 빌드
+        var boolQuery = new BoolQuery.Builder()
+                .must(m -> m.term(t -> t.field("isDeleted").value(false)))
+                .mustNot(m -> m.term(t -> t.field("tradeStatus").value("SOLD")));
+
+        if (request.getQuery() != null && !request.getQuery().isBlank()) {
+            boolQuery.should(s -> s.match(m -> m.field("name").query(request.getQuery())))
+                    .should(s -> s.match(m -> m.field("content").query(request.getQuery())))
+                    .should(s -> s.match(m -> m.field("hashtags").query(request.getQuery())))
+                    .minimumShouldMatch("1");
+        }
+
+        if (request.getCategoryId() != null) {
+            boolQuery.must(m -> m.term(t -> t
+                    .field("categoryId")
+                    .value(request.getCategoryId().toString()))); // value는 보통 String 처리
+        }
+
+        if (request.getMinPrice() != null) {
+            NumberRangeQuery minPriceQuery = new NumberRangeQuery.Builder()
+                    .field("price")
+                    .gte(request.getMinPrice().doubleValue())   // 그냥 Double/Long 값 넣기
+                    .build();
+            boolQuery.must(m -> m.range(r -> r.number(minPriceQuery)));
+        }
+
+        if (request.getMaxPrice() != null) {
+            NumberRangeQuery maxPriceQuery = new NumberRangeQuery.Builder()
+                    .field("price")
+                    .lte(request.getMaxPrice().doubleValue())   // Integer → long
+                    .build();
+            boolQuery.must(m -> m.range(r -> r.number(maxPriceQuery)));
+        }
+
+        // 검색 실행
+        SearchResponse<ProductDocument> response = esClient.search(s -> s
+                        .index("products")
+                        .from(page * size)
+                        .size(size)
+                        .query(q -> q.bool(boolQuery.build()))
+                        .sort(sort -> sort.field(f -> f.field("createdAt").order(SortOrder.Desc))),
+                ProductDocument.class);
+
+        List<ProductSummaryDto> contents = response.hits().hits().stream()
+                .map(Hit::source)
+                .filter(Objects::nonNull)
+                .map(ProductSummaryDto::fromDocument)
+                .toList();
+
+        return new PageImpl<>(contents, PageRequest.of(page, size), response.hits().total().value());
+    }
+
+
     /**
      * 주어진 상품 ID 목록에 해당하는 상품들의 요약 정보를 조회
      * - 각 상품의 첫 번째 이미지 URL을 조회(썸네일)
@@ -293,7 +360,22 @@ public class ProductService {
 
             Boolean isLiked = likedMap.getOrDefault(product.getId(), false);
 
-            return ProductSummaryDto.fromEntity(product, thumbnailUrl, isLiked);
+            // 읍면동
+            String emd = product.getTradeAreas().get(0).getArea().getName();
+
+            return ProductSummaryDto.builder()
+                    .id(product.getId())
+                    .sellerId(product.getSellerId())
+                    .name(product.getName())
+                    .thumbnailUrl(thumbnailUrl)
+                    .inWishlist(isLiked)
+                    .price(product.getPrice())
+                    .emd(emd)
+                    .createdAt(product.getCreatedAt())
+                    .productStatus(product.getProductStatus().name())
+                    .tradeStatus(product.getTradeStatus().name())
+                    .isDeleted(product.getIsDeleted())
+                    .build();
         }).toList();
     }
 
@@ -353,7 +435,17 @@ public class ProductService {
                     Long thumbnailId = productToThumbnailId.get(sellerProduct.getId());
                     String thumbnailUrl = sellerProductPaths.get(thumbnailId);
 
-                    return ProductSummaryDto.fromEntity(product, thumbnailUrl, false);
+                    return ProductSummaryDto.builder()
+                            .id(sellerProduct.getId())
+                            .thumbnailUrl(toAbsoluteUrl(thumbnailUrl))
+                            .inWishlist(false) // 필요시 세팅
+                            .price(sellerProduct.getPrice())
+                            .emd(sellerProduct.getTradeAreas().get(0).getArea().getName())
+                            .createdAt(sellerProduct.getCreatedAt())
+                            .productStatus(sellerProduct.getProductStatus().name())
+                            .tradeStatus(sellerProduct.getTradeStatus().name())
+                            .isDeleted(sellerProduct.getIsDeleted())
+                            .build();
                 })
                 .toList();
 
@@ -393,7 +485,7 @@ public class ProductService {
      * @return 등록된 상품의 ID
      */
     @Transactional
-    public Long createProduct(ProductRequest dto, String userId) {
+    public Long createProduct(ProductRequest dto, String userId) throws IOException {
         ProductCategory category = categoryRepository.findById(dto.getCategoryId())
                 .orElseThrow(() -> new IllegalArgumentException("Invalid category ID"));
 
@@ -456,8 +548,14 @@ public class ProductService {
      * Elasticsearch에 상품 데이터를 색인
      * @param product 색인할 상품 엔티티
      */
-    public void indexProduct(Product product) {
+    public void indexProduct(Product product) throws IOException {
         ProductDocument doc = ProductDocument.fromEntity(product);
-        searchRepository.save(doc);
+
+        esClient.index(i -> i
+                .index("products")
+                .id(doc.getId().toString())
+                .document(doc)
+        );
     }
+
 }
