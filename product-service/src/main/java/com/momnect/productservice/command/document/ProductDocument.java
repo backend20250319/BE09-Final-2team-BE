@@ -1,26 +1,22 @@
 package com.momnect.productservice.command.document;
 
 import com.momnect.productservice.command.entity.product.Product;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.elasticsearch.annotations.Document;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Getter
 @Setter
+@NoArgsConstructor   // ⬅️ 추가
+@AllArgsConstructor  // ⬅️ 추가
 @Builder
-@Document(indexName = "products")
 public class ProductDocument {
 
-    @Id
     private Long id;
-
     private Long categoryId;
     private Long sellerId;
     private String name;
@@ -31,12 +27,14 @@ public class ProductDocument {
     private String recommendedAge;
     private List<String> hashtags;
     private Integer viewCount;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
-    private LocalDateTime soldAt;
+
+    // LocalDateTime 대신 epoch millis 로 저장
+    private Long createdAt;
+    private Long updatedAt;
+//    private Long soldAt;
+
     private Boolean isDeleted;
 
-    // Product -> ProductDocument 변환
     public static ProductDocument fromEntity(Product product) {
         return ProductDocument.builder()
                 .id(product.getId())
@@ -52,10 +50,24 @@ public class ProductDocument {
                         .map(ph -> ph.getHashtag().getName())
                         .collect(Collectors.toList()))
                 .viewCount(product.getViewCount())
-                .createdAt(product.getCreatedAt())
-                .updatedAt(product.getUpdatedAt())
-                .soldAt(product.getSoldAt())
-                .isDeleted(product.getIsDeleted()) // default false
+                .createdAt(toMillis(product.getCreatedAt()))
+                .updatedAt(toMillis(product.getUpdatedAt()))
+//                .soldAt(toMillis(product.getSoldAt()))
+                .isDeleted(product.getIsDeleted())
                 .build();
+    }
+
+    public static Long toMillis(LocalDateTime time) {
+        return time == null ? null :
+                time.atZone(ZoneId.systemDefault()) // 서버 타임존 기준 (한국이면 Asia/Seoul)
+                        .toInstant()
+                        .toEpochMilli();
+    }
+
+    public static LocalDateTime toLocalDateTime(Long millis) {
+        return millis == null ? null :
+                Instant.ofEpochMilli(millis)
+                        .atZone(ZoneId.of("Asia/Seoul"))
+                        .toLocalDateTime();
     }
 }

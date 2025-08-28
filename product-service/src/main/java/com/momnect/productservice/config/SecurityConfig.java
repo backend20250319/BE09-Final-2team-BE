@@ -53,6 +53,12 @@ public class SecurityConfig {
                                         "/categories/tree"
                                 )
                                 .permitAll()
+
+                                // POST 허용
+                                .requestMatchers(HttpMethod.POST,
+                                        "/products/search"
+                                ).permitAll()
+
                                 .anyRequest()
                                 .authenticated()
                 )

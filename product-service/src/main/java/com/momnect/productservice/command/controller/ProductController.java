@@ -2,14 +2,17 @@ package com.momnect.productservice.command.controller;
 
 import com.momnect.productservice.command.dto.product.ProductDetailDTO;
 import com.momnect.productservice.command.dto.product.ProductRequest;
+import com.momnect.productservice.command.dto.product.ProductSearchRequest;
 import com.momnect.productservice.command.dto.product.ProductSummaryDto;
 import com.momnect.productservice.command.service.ProductService;
 import com.momnect.productservice.common.ApiResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -19,6 +22,20 @@ import java.util.Map;
 public class ProductController {
 
     private final ProductService productService;
+
+    /***
+     * 상품 검색/브라우즈 API (ES 기반)
+     * - query 없으면 카테고리 브라우즈
+     * - query 있으면 검색
+     * - Pageable 기반으로 Page<ProductSummaryDto> 리턴
+     */
+    @PostMapping("/search")
+    public ResponseEntity<ApiResponse<Page<ProductSummaryDto>>> searchProducts(
+            @RequestBody ProductSearchRequest request) throws IOException {
+
+        Page<ProductSummaryDto> result = productService.searchProducts(request);
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
 
     /***
      * 상품 요약 리스트 조회 API
@@ -57,7 +74,7 @@ public class ProductController {
     @PostMapping
     public ResponseEntity<ApiResponse<Map<String, Long>>> createProduct(
             @RequestBody ProductRequest dto,
-            @AuthenticationPrincipal String userId) {
+            @AuthenticationPrincipal String userId) throws IOException {
 
         Long productId = productService.createProduct(dto, userId);
         Map<String, Long> result = Map.of("productId", productId);
