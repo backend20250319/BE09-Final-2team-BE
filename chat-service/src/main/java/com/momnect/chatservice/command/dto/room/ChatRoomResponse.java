@@ -6,10 +6,13 @@ import java.time.LocalDateTime;
 @Getter @Setter
 @NoArgsConstructor @AllArgsConstructor @Builder
 public class ChatRoomResponse {
-    private Long id;
+    private Long roomId;
     private Long productId;
+    private String productName;
+    private Integer productPrice;
+    private String tradeStatus;
+    private String productThumbnailUrl;
     private Long buyerId;
     private Long sellerId;
     private LocalDateTime createdAt;
-    private Boolean isNew; // 새로 생성된 채팅방인지 여부
 }

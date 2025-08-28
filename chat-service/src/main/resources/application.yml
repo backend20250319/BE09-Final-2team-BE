@@ -24,11 +24,32 @@ spring:
     properties:
       hibernate:
         format_sql: true
+  data:
+    mongodb:
+      host: localhost
+      port: 27017
+      database: chatdb
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2000ms
+
+# Feign Client 설정
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 5000
+      user-service:
+        url: http://localhost:8000/api/v1/user-service
 
 logging:
   level:
     com.momnect.chatservice: INFO
     org.springframework.web: INFO
+    org.springframework.security: DEBUG
+    com.momnect.chatservice.command.client: DEBUG
 
 # swagger
 springdoc:
