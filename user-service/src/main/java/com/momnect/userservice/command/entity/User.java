@@ -53,6 +53,9 @@ public class User {
     @Column(name = "profile_image_url", length = 500)
     private String profileImageUrl;
 
+    @Column(name = "trade_area_ids", length = 255)
+    private String tradeAreaIds; // "549,550,551" 형태로 저장
+
     // 권한 및 토큰
     @Column(name = "role", nullable = false, length = 10)
     @Builder.Default

@@ -1,4 +1,4 @@
-package com.momnect.userservice.command.dto;
+package com.momnect.userservice.command.dto.common;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -13,8 +13,8 @@ public class ProductSummaryDTO {
 
     private Long id;
     private String thumbnailUrl;        // 상품 이미지 썸네일
-    private Boolean isWishList;         // 찜하기
-    private int price;                  // 가격
+    private Boolean inWishlist;         // 찜하기
+    private Integer price;              // 가격
     private String emd;                 // 읍면동
     private LocalDateTime createdAt;    // 생성일시
     private String productStatus;       // 상품 상태
