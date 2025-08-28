@@ -45,15 +45,15 @@ public class SecurityConfig {
                                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**").permitAll()
                                 .requestMatchers(HttpMethod.POST, "/auth/signup", "/auth/login").permitAll()
 
-                                // ping, websocket 공개
-                                .requestMatchers("/ping", "/ws/**").permitAll()
+                                // websocket 공개
+                                .requestMatchers("/ws/**").permitAll()
 
                                 // ★ 실제 API 전체 공개 (dev 용)
-                                .requestMatchers("/**").permitAll()
+                                // .requestMatchers("/**").permitAll()
 
                                 // 나머지
-//                        .anyRequest().authenticated()
-                                .anyRequest().permitAll()
+                                .anyRequest().authenticated()
+                                // .anyRequest().permitAll()
                 )
 
                 .addFilterBefore(headerAuthenticationFilter(),

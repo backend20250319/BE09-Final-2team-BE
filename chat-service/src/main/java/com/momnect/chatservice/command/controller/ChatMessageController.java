@@ -11,6 +11,7 @@ import com.momnect.chatservice.common.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -27,9 +28,10 @@ public class ChatMessageController {
     @PostMapping
     public ResponseEntity<ApiResponse<ChatMessageResponse>> send(
             @PathVariable Long roomId,
-            @Valid @RequestBody ChatMessageSendRequest req
+            @Valid @RequestBody ChatMessageSendRequest req,
+            @AuthenticationPrincipal String userId
     ) {
-        ChatMessageResponse sent = chatMessageService.send(roomId, req);
+        ChatMessageResponse sent = chatMessageService.send(roomId, req, Long.valueOf(userId));
         return ResponseEntity.ok(ApiResponse.success(sent));
     }
 
@@ -38,9 +40,10 @@ public class ChatMessageController {
     public ResponseEntity<ApiResponse<PageResponse<ChatMessageResponse>>> list(
             @PathVariable Long roomId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size
+            @RequestParam(defaultValue = "20") int size,
+            @AuthenticationPrincipal String userId
     ) {
-        List<ChatMessageResponse> content = chatMessageService.getMessages(roomId, page, size);
+        List<ChatMessageResponse> content = chatMessageService.getMessages(roomId, page, size, Long.valueOf(userId));
         PageResponse<ChatMessageResponse> body = PageResponse.<ChatMessageResponse>builder()
                 .content(content)
                 .page(page)
@@ -54,9 +57,10 @@ public class ChatMessageController {
     @PostMapping("/read")
     public ResponseEntity<ApiResponse<Void>> markRead(
             @PathVariable Long roomId,
-            @Valid @RequestBody ChatMessageMarkReadRequest req
+            @Valid @RequestBody ChatMessageMarkReadRequest req,
+            @AuthenticationPrincipal String userId
     ) {
-        chatMessageService.markAsRead(roomId, req);
+        chatMessageService.markAsRead(roomId, req, Long.valueOf(userId));
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
@@ -64,9 +68,9 @@ public class ChatMessageController {
     @GetMapping("/unread")
     public ResponseEntity<ApiResponse<UnreadCountResponse>> getUnreadCount(
             @PathVariable Long roomId,
-            @RequestParam Long userId // 추후 SecurityContext 대체 가능
+            @AuthenticationPrincipal String userId
     ) {
-        UnreadCountResponse res = chatUnreadService.getUnreadCount(roomId, userId);
+        UnreadCountResponse res = chatUnreadService.getUnreadCount(roomId, Long.valueOf(userId));
         return ResponseEntity.ok(ApiResponse.success(res));
     }
 }

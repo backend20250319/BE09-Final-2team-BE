@@ -39,13 +39,22 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth ->
                         auth
                                 .requestMatchers(HttpMethod.GET,
+                                        "/products/*",  // 상품 상세 조회 추가
+                                        "/trades/users/*/summary", // 상품 거래 횟수
+                                        "/trades/users/*/sales",   // 유저 판매 상품 조회
+
                                         "/swagger-ui/**",
                                         "/v3/api-docs/**",
                                         "/swagger-resources/**",
                                         "/areas/load",
                                         "/areas/search",
+                                        "/areas/**",
                                         "/categories/init",
                                         "/categories/tree"
+                                )
+                                .permitAll()
+                                .requestMatchers(HttpMethod.POST,
+                                        "/products/search"
                                 )
                                 .permitAll()
                                 .anyRequest()

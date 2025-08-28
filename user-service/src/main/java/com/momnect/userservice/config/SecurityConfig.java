@@ -42,6 +42,7 @@ public class SecurityConfig {
                                 exception.accessDeniedHandler(restAccessDeniedHandler)
                                         .authenticationEntryPoint(restAuthenticationEntryPoint)
                 )
+<<<<<<< HEAD
                 .authorizeHttpRequests(auth ->
                         auth.requestMatchers(HttpMethod.POST, "/auth/signup", "/auth/login").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/users/*").permitAll()
@@ -52,9 +53,21 @@ public class SecurityConfig {
                                 .permitAll()
                                 .anyRequest()
                                 .authenticated()
+=======
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.POST, "/auth/signup", "/auth/login", "/auth/verify-account").permitAll()
+                        .requestMatchers(HttpMethod.PUT, "/auth/reset-password").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/auth/validate", "/auth/validate-cookie").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/users/check").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/users/{userId}").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/users/{userId}/exists").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/users/{userId}/basic").permitAll()
+                        .anyRequest().authenticated()
+>>>>>>> 984fcc69a9bb390937e219a0dbb4da3b12fc58de
                 )
-                .addFilterBefore(cookieAuthenticationFilter,
-                        UsernamePasswordAuthenticationFilter.class)
+
+                .addFilterBefore(cookieAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
         ;
 
         return http.build();

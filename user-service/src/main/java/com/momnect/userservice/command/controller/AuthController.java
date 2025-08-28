@@ -131,6 +131,36 @@ public class AuthController {
     }
 
     /**
+     * JWT 토큰 검증 (WebSocket 인증용)
+     *
+     * @param request 토큰 검증 요청 DTO
+     * @return 토큰 검증 결과
+     */
+    @PostMapping("/validate")
+    public ResponseEntity<ApiResponse<UserValidationResponse>> validateToken(@Valid @RequestBody UserValidationRequest request) {
+        UserValidationResponse response = authService.validateToken(request.getToken());
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    /**
+     * 쿠키 기반 JWT 토큰 검증 (WebSocket 인증용)
+     *
+     * @param accessToken HttpOnly 쿠키에서 추출한 AccessToken
+     * @return 토큰 검증 결과
+     */
+    @PostMapping("/validate-cookie")
+    public ResponseEntity<ApiResponse<UserValidationResponse>> validateTokenFromCookie(
+            @CookieValue(name = "accessToken", required = false) String accessToken) {
+        
+        if (accessToken == null) {
+            return ResponseEntity.ok(ApiResponse.success(new UserValidationResponse(false, null, null, null)));
+        }
+        
+        UserValidationResponse response = authService.validateToken(accessToken);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    /**
      * AccessToken HttpOnly 쿠키 생성 헬퍼 메서드
      *
      * @param accessToken JWT AccessToken 문자열

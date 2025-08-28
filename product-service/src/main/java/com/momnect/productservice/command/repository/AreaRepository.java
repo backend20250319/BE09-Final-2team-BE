@@ -1,7 +1,7 @@
 package com.momnect.productservice.command.repository;
 
-import com.momnect.productservice.command.entity.Area;
-import com.momnect.productservice.command.entity.AreaLevel;
+import com.momnect.productservice.command.entity.area.Area;
+import com.momnect.productservice.command.entity.area.AreaLevel;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -14,4 +14,7 @@ public interface AreaRepository extends JpaRepository<Area, Integer> {
 
     // 지역 코드 검색
     Optional<Area> findByCode(String code);
+
+    // 지역 ID 검색
+    List<Area> findByIdIn(List<Integer> ids);
 }
