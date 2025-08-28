@@ -40,7 +40,7 @@ public class ChatMessageService {
     // =========================
     /** 메시지 전송 + 상대 unread 증가(Participant) + Redis 카운터/이벤트 */
     @Transactional
-    public ChatMessageResponse send(Long roomId, ChatMessageSendRequest req) {
+    public ChatMessageResponse send(Long roomId, ChatMessageSendRequest req, Long userId) {
         // 1) Mongo 저장 (통합된 필드 구조 사용)
         ChatMessage saved = messageRepository.save(ChatMessage.builder()
                 .id(new ObjectId())
@@ -149,7 +149,12 @@ public class ChatMessageService {
     // =========================
     /** 메시지 조회(최신순 페이지네이션) */
     @Transactional(readOnly = true)
-    public List<ChatMessageResponse> getMessages(Long roomId, int page, int size) {
+    public List<ChatMessageResponse> getMessages(Long roomId, int page, int size, Long userId) {
+        // 방 참여자인지 확인
+        if (!isParticipant(roomId, userId)) {
+            throw new IllegalArgumentException("You are not a participant of this room");
+        }
+        
         Pageable pageable = PageRequest.of(page, size);
         return messageRepository.findByRoomIdOrderBySentAtDesc(roomId.toString(), pageable)
                 .stream()
@@ -167,7 +172,12 @@ public class ChatMessageService {
      * - Redis: lastReadSeq가 없다(엔티티에 seq 필드가 없으므로), 캐시 카운트만 0으로 리셋
      */
     @Transactional
-    public void markAsRead(Long roomId, ChatMessageMarkReadRequest req) throws DataAccessException {
+    public void markAsRead(Long roomId, ChatMessageMarkReadRequest req, Long userId) throws DataAccessException {
+        // 방 참여자인지 확인
+        if (!isParticipant(roomId, userId)) {
+            throw new IllegalArgumentException("You are not a participant of this room");
+        }
+        
         // 1) 내 참여자 정보 갱신 (DB)
         ChatParticipant me = participantRepository.findFirstByChatRoomIdAndUserId(roomId, req.getUserId());
         if (me == null) {
@@ -223,5 +233,10 @@ public class ChatMessageService {
         } catch (Exception e) {
             return "{}";
         }
+    }
+    
+    /** 참여자 확인 */
+    private boolean isParticipant(Long roomId, Long userId) {
+        return participantRepository.findFirstByChatRoomIdAndUserId(roomId, userId) != null;
     }
 }
