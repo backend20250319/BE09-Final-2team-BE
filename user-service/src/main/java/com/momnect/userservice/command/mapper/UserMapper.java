@@ -1,9 +1,14 @@
 package com.momnect.userservice.command.mapper;
 
-import com.momnect.userservice.command.dto.UserDTO;
-import com.momnect.userservice.command.dto.PublicUserDTO;
+import com.momnect.userservice.command.dto.user.UserDTO;
+import com.momnect.userservice.command.dto.user.PublicUserDTO;
 import com.momnect.userservice.command.entity.User;
+
+
 import org.springframework.stereotype.Component;
+
+import java.util.Collections;
+import java.util.List;
 
 /**
  * User 엔티티와 DTO 간 변환을 담당하는 매퍼 클래스
@@ -45,13 +50,18 @@ public class UserMapper {
      * User 엔티티를 PublicUserDTO로 변환 (공개 정보만)
      * 다른 사용자 프로필 조회 시 사용
      */
-    public PublicUserDTO toPublicUserDTO(User user, boolean includeEmail) {
+    public PublicUserDTO toPublicUserDTO(User user, List<String> tradeLocations) {
         return PublicUserDTO.builder()
                 .id(user.getId())
                 .nickname(user.getNickname())
-                .email(includeEmail ? user.getEmail():null)
                 .profileImageUrl(user.getProfileImageUrl())
                 .createdAt(user.getCreatedAt())
+                .tradeLocations(tradeLocations)
                 .build();
+    }
+
+    // 오버로딩: tradeLocations 없이 변환할 때
+    public PublicUserDTO toPublicUserDTO(User user) {
+        return toPublicUserDTO(user, Collections.emptyList());
     }
 }

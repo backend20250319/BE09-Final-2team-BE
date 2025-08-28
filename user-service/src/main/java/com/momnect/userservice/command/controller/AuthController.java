@@ -1,6 +1,6 @@
 package com.momnect.userservice.command.controller;
 
-import com.momnect.userservice.command.dto.*;
+import com.momnect.userservice.command.dto.auth.*;
 import com.momnect.userservice.command.service.AuthService;
 import com.momnect.userservice.common.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;

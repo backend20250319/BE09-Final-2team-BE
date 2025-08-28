@@ -1,9 +1,10 @@
-package com.momnect.userservice.command.dto;
+package com.momnect.userservice.command.dto.user;
 
 import lombok.Builder;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Builder
@@ -14,4 +15,5 @@ public class PublicUserDTO {
     private String email;
     private String profileImageUrl;
     private LocalDateTime createdAt;
+    private List<String> tradeLocations;
 }
