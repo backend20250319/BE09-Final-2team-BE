@@ -9,6 +9,7 @@ import com.momnect.chatservice.common.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,22 +23,22 @@ public class ChatRoomController {
 
     /** 방 생성 (이미 있으면 기존 방 반환) */
     @PostMapping
-    public ResponseEntity<ApiResponse<ChatRoomResponse>> create(@Valid @RequestBody ChatRoomCreateRequest req) {
-        ChatRoomResponse room = chatRoomService.createRoom(req);
+    public ResponseEntity<ApiResponse<ChatRoomResponse>> create(@Valid @RequestBody ChatRoomCreateRequest req, @AuthenticationPrincipal String userId) {
+        ChatRoomResponse room = chatRoomService.createRoom(req, Long.valueOf(userId));
         return ResponseEntity.ok(ApiResponse.success(room));
     }
 
     /** 내가 참여한 방 목록 (최근 메시지 기준) */
-    @GetMapping("/me/{userId}")
-    public ResponseEntity<ApiResponse<List<ChatRoomSummaryResponse>>> myRooms(@PathVariable Long userId) {
-        List<ChatRoomSummaryResponse> rooms = chatRoomService.listRoomsForUser(userId);
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<List<ChatRoomSummaryResponse>>> myRooms(@AuthenticationPrincipal String userId) {
+        List<ChatRoomSummaryResponse> rooms = chatRoomService.listRoomsForUser(Long.valueOf(userId));
         return ResponseEntity.ok(ApiResponse.success(rooms));
     }
 
     /** 방 참여자 목록 */
     @GetMapping("/{roomId}/participants")
-    public ResponseEntity<ApiResponse<List<ChatRoomParticipantResponse>>> participants(@PathVariable Long roomId) {
-        List<ChatRoomParticipantResponse> participants = chatRoomService.getParticipants(roomId);
+    public ResponseEntity<ApiResponse<List<ChatRoomParticipantResponse>>> participants(@PathVariable Long roomId, @AuthenticationPrincipal String userId) {
+        List<ChatRoomParticipantResponse> participants = chatRoomService.getParticipants(roomId, Long.valueOf(userId));
         return ResponseEntity.ok(ApiResponse.success(participants));
     }
 }

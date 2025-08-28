@@ -35,7 +35,7 @@ public class ChatRoomService {
 
     /** 방 생성(상품별 1:1 방 중복 방지) */
     @Transactional
-    public ChatRoomResponse createRoom(ChatRoomCreateRequest req) {
+    public ChatRoomResponse createRoom(ChatRoomCreateRequest req, Long userId) {
         ChatRoom existed = chatRoomRepository
                 .findFirstByBuyerIdAndSellerIdAndProductId(req.getBuyerId(), req.getSellerId(), req.getProductId());
         if (existed != null) return toResponse(existed, false);
@@ -93,7 +93,12 @@ public class ChatRoomService {
 
     /** 방 참여자 목록 */
     @Transactional(readOnly = true)
-    public List<ChatRoomParticipantResponse> getParticipants(Long roomId) {
+    public List<ChatRoomParticipantResponse> getParticipants(Long roomId, Long userId) {
+        // 방 참여자인지 확인
+        if (!isParticipant(roomId, userId)) {
+            throw new IllegalArgumentException("You are not a participant of this room");
+        }
+        
         return participantRepository.findByChatRoomId(roomId).stream()
                 .map(p -> {
                     try {
