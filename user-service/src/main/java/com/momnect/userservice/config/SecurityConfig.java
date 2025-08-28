@@ -42,16 +42,18 @@ public class SecurityConfig {
                                 exception.accessDeniedHandler(restAccessDeniedHandler)
                                         .authenticationEntryPoint(restAuthenticationEntryPoint)
                 )
-                .authorizeHttpRequests(auth ->
-                        auth.requestMatchers(HttpMethod.POST, "/auth/signup", "/auth/login", "/auth/verify-account").permitAll()
-                                .requestMatchers(HttpMethod.PUT, "/auth/reset-password").permitAll()
-                                .requestMatchers(HttpMethod.GET, "/users/check").permitAll()
-                                .requestMatchers(HttpMethod.GET, "/users/{userId}").permitAll() // 타사용자 기본 정보
-                                .requestMatchers(HttpMethod.GET, "/users/{userId}/exists").permitAll() // 사용자 존재 여부 확인
-                                .requestMatchers(HttpMethod.GET, "/users/{userId}/basic").permitAll() // 헤더용 기본 정보
-                                .requestMatchers(HttpMethod.GET, "/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**").permitAll()
-                                .anyRequest().authenticated()
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.POST, "/auth/signup", "/auth/login", "/auth/verify-account").permitAll()
+                        .requestMatchers(HttpMethod.PUT, "/auth/reset-password").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/auth/validate", "/auth/validate-cookie").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/users/check").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/users/{userId}").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/users/{userId}/exists").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/users/{userId}/basic").permitAll()
+                        .anyRequest().authenticated()
                 )
+
                 .addFilterBefore(cookieAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
         ;
 
