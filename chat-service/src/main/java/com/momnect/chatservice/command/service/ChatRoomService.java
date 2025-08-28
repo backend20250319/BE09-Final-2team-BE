@@ -1,7 +1,9 @@
 package com.momnect.chatservice.command.service;
 
 import com.momnect.chatservice.command.client.UserServiceClient;
+import com.momnect.chatservice.command.client.ProductClient;
 import com.momnect.chatservice.command.client.dto.UserBasicInfoResponse;
+import com.momnect.chatservice.command.client.dto.ProductSummaryResponse;
 import com.momnect.chatservice.command.client.dto.ApiResponse;
 import com.momnect.chatservice.command.dto.room.ChatRoomCreateRequest;
 import com.momnect.chatservice.command.dto.room.ChatRoomParticipantResponse;
@@ -32,18 +34,35 @@ public class ChatRoomService {
     private final ChatParticipantRepository participantRepository;
     private final ChatMessageRepository messageRepository;
     private final UserServiceClient userServiceClient;
+    private final ProductClient productClient;
 
     /** 방 생성(상품별 1:1 방 중복 방지) */
     @Transactional
     public ChatRoomResponse createRoom(ChatRoomCreateRequest req, Long userId) {
+        try {
+            // 상품 정보에서 sellerId 조회
+            ApiResponse<List<ProductSummaryResponse>> response = productClient.getProductSummaries(List.of(req.getProductId()), userId);
+            if (!response.isSuccess() || response.getData() == null || response.getData().isEmpty()) {
+                throw new IllegalArgumentException("상품을 찾을 수 없습니다. ID: " + req.getProductId());
+            }
+            List<ProductSummaryResponse> productInfos = response.getData();
+        
+        Long sellerId = productInfos.get(0).getSellerId();
+        Long buyerId = userId; // 현재 로그인한 사용자가 buyer
+        
+        // 자신의 상품에 대해 채팅방을 생성하려는 경우 방지
+        if (buyerId.equals(sellerId)) {
+            throw new IllegalArgumentException("자신의 상품에 대해 채팅방을 생성할 수 없습니다.");
+        }
+        
         ChatRoom existed = chatRoomRepository
-                .findFirstByBuyerIdAndSellerIdAndProductId(req.getBuyerId(), req.getSellerId(), req.getProductId());
+                .findFirstByBuyerIdAndSellerIdAndProductId(buyerId, sellerId, req.getProductId());
         if (existed != null) return toResponse(existed, false);
 
         ChatRoom room = ChatRoom.builder()
                 .productId(req.getProductId())
-                .buyerId(req.getBuyerId())
-                .sellerId(req.getSellerId())
+                .buyerId(buyerId)
+                .sellerId(sellerId)
                 .createdAt(LocalDateTime.now())
                 .build();
 
@@ -52,19 +71,23 @@ public class ChatRoomService {
         // 참여자 2명 생성
         participantRepository.save(ChatParticipant.builder()
                 .chatRoomId(saved.getId())
-                .userId(req.getBuyerId())
+                .userId(buyerId)
                 .unreadCount(0)
                 .lastReadAt(LocalDateTime.now())
                 .build());
 
         participantRepository.save(ChatParticipant.builder()
                 .chatRoomId(saved.getId())
-                .userId(req.getSellerId())
+                .userId(sellerId)
                 .unreadCount(0)
                 .lastReadAt(LocalDateTime.now())
                 .build());
 
         return toResponse(saved, true);
+        } catch (Exception e) {
+            log.error("채팅방 생성 중 오류 발생: {}", e.getMessage(), e);
+            throw e;
+        }
     }
 
     /** 내가 참여한 방 목록(최근 메시지 기준 정렬) */
@@ -147,13 +170,41 @@ public class ChatRoomService {
     }
 
     private ChatRoomResponse toResponse(ChatRoom r, boolean isNew) {
-        return ChatRoomResponse.builder()
-                .id(r.getId())
-                .productId(r.getProductId())
-                .buyerId(r.getBuyerId())
-                .sellerId(r.getSellerId())
-                .createdAt(r.getCreatedAt())
-                .isNew(isNew)
-                .build();
+        try {
+            // Product Service에서 상품 정보 가져오기
+            // toResponse에서는 userId가 없으므로 null로 전달
+            ApiResponse<List<ProductSummaryResponse>> response = productClient.getProductSummaries(List.of(r.getProductId()), null);
+            if (!response.isSuccess() || response.getData() == null || response.getData().isEmpty()) {
+                throw new RuntimeException("Product info not found");
+            }
+            List<ProductSummaryResponse> productInfos = response.getData();
+            
+            ProductSummaryResponse productInfo = productInfos.get(0);
+                
+            return ChatRoomResponse.builder()
+                    .roomId(r.getId())
+                    .productId(r.getProductId())
+                    .productName(productInfo.getName())
+                    .productPrice(productInfo.getPrice())
+                    .tradeStatus(productInfo.getTradeStatus())
+                    .productThumbnailUrl(productInfo.getThumbnailUrl())
+                    .buyerId(r.getBuyerId())
+                    .sellerId(r.getSellerId())
+                    .createdAt(r.getCreatedAt())
+                    .build();
+        } catch (Exception e) {
+            // 에러 발생 시 기본 정보만 반환
+            return ChatRoomResponse.builder()
+                    .roomId(r.getId())
+                    .productId(r.getProductId())
+                    .productName("상품명 없음")
+                    .productPrice(0)
+                    .tradeStatus("UNKNOWN")
+                    .productThumbnailUrl(null)
+                    .buyerId(r.getBuyerId())
+                    .sellerId(r.getSellerId())
+                    .createdAt(r.getCreatedAt())
+                    .build();
+        }
     }
 }

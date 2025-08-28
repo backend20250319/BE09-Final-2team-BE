@@ -8,12 +8,14 @@ import com.momnect.chatservice.command.service.ChatRoomService;
 import com.momnect.chatservice.common.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Slf4j
 @RestController
 @RequestMapping("/rooms")
 @RequiredArgsConstructor
@@ -24,8 +26,13 @@ public class ChatRoomController {
     /** 방 생성 (이미 있으면 기존 방 반환) */
     @PostMapping
     public ResponseEntity<ApiResponse<ChatRoomResponse>> create(@Valid @RequestBody ChatRoomCreateRequest req, @AuthenticationPrincipal String userId) {
-        ChatRoomResponse room = chatRoomService.createRoom(req, Long.valueOf(userId));
-        return ResponseEntity.ok(ApiResponse.success(room));
+        try {
+            ChatRoomResponse room = chatRoomService.createRoom(req, Long.valueOf(userId));
+            return ResponseEntity.ok(ApiResponse.success(room));
+        } catch (Exception e) {
+            log.error("채팅방 생성 컨트롤러 오류: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest().body(ApiResponse.failure("BAD_REQUEST", e.getMessage()));
+        }
     }
 
     /** 내가 참여한 방 목록 (최근 메시지 기준) */
