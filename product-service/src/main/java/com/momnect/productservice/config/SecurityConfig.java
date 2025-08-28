@@ -53,6 +53,10 @@ public class SecurityConfig {
                                         "/categories/tree"
                                 )
                                 .permitAll()
+                                .requestMatchers(HttpMethod.POST,
+                                        "/products/search"
+                                )
+                                .permitAll()
                                 .anyRequest()
                                 .authenticated()
                 )
