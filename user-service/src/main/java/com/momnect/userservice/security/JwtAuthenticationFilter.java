@@ -23,7 +23,7 @@ import java.util.List;
 @Component
 @Slf4j
 @RequiredArgsConstructor
-public class CookieAuthenticationFilter extends OncePerRequestFilter {
+public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
 

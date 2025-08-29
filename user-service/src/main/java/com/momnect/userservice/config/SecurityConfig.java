@@ -1,6 +1,6 @@
 package com.momnect.userservice.config;
 
-import com.momnect.userservice.security.CookieAuthenticationFilter;
+import com.momnect.userservice.security.JwtAuthenticationFilter;
 import com.momnect.userservice.security.RestAccessDeniedHandler;
 import com.momnect.userservice.security.RestAuthenticationEntryPoint;
 
@@ -30,7 +30,7 @@ public class SecurityConfig {
 
     private final RestAccessDeniedHandler restAccessDeniedHandler;
     private final RestAuthenticationEntryPoint restAuthenticationEntryPoint;
-    private final CookieAuthenticationFilter cookieAuthenticationFilter;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -57,7 +57,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/users/me/trade-locations").authenticated()
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(cookieAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
         ;
 
         return http.build();
