@@ -30,6 +30,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -65,15 +66,59 @@ public class ProductService {
         return ftpBaseUrl + relativePath;
     }
 
+    /**
+     * 찜 추가
+     */
+    public void addWishlist(Long productId, Long userId) {
+        // 이미 존재하는 경우 중복 저장 방지
+        wishlistRepository.findByProductIdAndUserId(productId, userId)
+                .ifPresent(w -> {
+                    throw new IllegalStateException("이미 찜한 상품입니다.");
+                });
+
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다. id=" + productId));
+
+        Wishlist wishlist = Wishlist.builder()
+                .product(product)
+                .userId(userId)
+                .build();
+
+        wishlistRepository.save(wishlist);
+    }
+
+    /**
+     * 찜 취소
+     */
+    public void removeWishlist(Long productId, Long userId) {
+        Wishlist wishlist = wishlistRepository.findByProductIdAndUserId(productId, userId)
+                .orElseThrow(() -> new IllegalArgumentException("찜한 내역이 없습니다."));
+        wishlistRepository.delete(wishlist);
+    }
+
+    /**
+     * 내 찜 목록 조회
+     */
+    @Transactional(readOnly = true)
+    public List<ProductSummaryDto> getMyWishlist(Long userId) {
+        // 유저가 찜한 상품 목록 조회
+        List<Wishlist> wishlists = wishlistRepository.findAllByUserId(userId);
+
+        // Wishlist → Product 추출
+        List<Product> products = wishlists.stream()
+                .map(Wishlist::getProduct)
+                .toList();
+
+        // 이미 로그인 유저 id가 있으므로 그대로 넘겨주면 inWishlist = true 처리됨
+        return toProductSummaryDtos(products, userId);
+    }
+
     // ====================== 홈 섹션 ======================
     public ProductSectionsResponse getHomeProductSections(Long userId) {
         List<ProductSummaryDto> popular = getPopularTop30(userId);
         List<ProductSummaryDto> latest = getNewTop30(userId);
         List<ProductSummaryDto> recommended = getRecommendedTop30(userId);
 
-//        List<ProductSummaryDto> popular = new ArrayList<>();
-//        List<ProductSummaryDto> latest = new ArrayList<>();
-//        List<ProductSummaryDto> recommended = new ArrayList<>();
 
         return ProductSectionsResponse.builder()
                 .popular(popular)
@@ -88,7 +133,8 @@ public class ProductService {
     public List<ProductSummaryDto> getPopularTop30(Long userId) {
         List<Product> products =
                 productRepository.findTop30ByIsDeletedFalseAndTradeStatusNotOrderByViewCountDescCreatedAtDesc(TradeStatus.SOLD);
-        return toSummaries(products, userId);
+        return toProductSummaryDtos(products, userId);
+
     }
 
     /**
@@ -97,7 +143,7 @@ public class ProductService {
     public List<ProductSummaryDto> getNewTop30(Long userId) {
         List<Product> products =
                 productRepository.findTop30ByIsDeletedFalseAndTradeStatusNotOrderByCreatedAtDesc(TradeStatus.SOLD);
-        return toSummaries(products, userId);
+        return toProductSummaryDtos(products, userId);
     }
 
     /**
@@ -155,7 +201,7 @@ public class ProductService {
                     .limit(30)
                     .toList();
 
-            return toSummaries(top30, userId);
+            return toProductSummaryDtos(top30, userId);
         }
 
         // 3) 기존 랭킹 로직 (찜수 TOP N → 인기 Top30)
@@ -170,82 +216,13 @@ public class ProductService {
 
             likeRanked = new java.util.ArrayList<>(likeRanked);
             likeRanked.sort(java.util.Comparator.comparingInt(p -> order.getOrDefault(p.getId(), Integer.MAX_VALUE)));
-
-            return toSummaries(likeRanked, userId);
+            return toProductSummaryDtos(likeRanked, userId);
         }
 
         // fallback → 인기 Top30
         return getPopularTop30(userId);
     }
 
-
-    private List<ProductSummaryDto> toSummaries(List<Product> products, Long userId) {
-        if (products == null || products.isEmpty()) return List.of();
-
-        // (1) 유저 찜 여부 일괄 조회
-        Set<Long> likedIds;
-        if (userId != null) {
-            List<Long> ids = products.stream().map(Product::getId).toList();
-            likedIds = wishlistRepository.findAllByUserIdAndProductIdIn(userId, ids).stream()
-                    .map(w -> w.getProduct().getId())
-                    .collect(Collectors.toSet());
-        } else {
-            likedIds = Collections.emptySet();
-        }
-
-        // (2) 썸네일 URL 배치 로딩 (productId -> url)
-        Map<Long, String> thumbUrlByProductId = fetchThumbnailUrlByProductId(products);
-
-        // (3) DTO 변환
-        return products.stream()
-                .map(p -> ProductSummaryDto.fromEntity(
-                        p,
-                        thumbUrlByProductId.get(p.getId()),
-                        userId != null && likedIds.contains(p.getId())
-                ))
-                .toList();
-    }
-
-    private Map<Long, String> fetchThumbnailUrlByProductId(List<Product> products) {
-        // 1) productId -> 대표 이미지 fileId(최소 sortOrder) 추출
-        Map<Long, Long> productToFileId = new HashMap<>();
-        for (Product p : products) {
-            if (p.getProductImages() == null || p.getProductImages().isEmpty()) continue;
-
-            p.getProductImages().stream()
-                    .min(Comparator.comparingInt(ProductImage::getSortOrder))
-                    .ifPresent(img -> productToFileId.put(p.getId(), img.getId().getImageFileId()));
-        }
-        if (productToFileId.isEmpty()) return Collections.emptyMap();
-
-        // 2) FileClient 배치 호출
-        String idsParam = productToFileId.values().stream()
-                .distinct()
-                .map(String::valueOf)
-                .collect(Collectors.joining(","));
-
-        ApiResponse<List<ImageFileDTO>> resp = fileClient.getImageFilesByIds(idsParam);
-
-        // 3) imageFileId -> 절대경로 URL 매핑
-        Map<Long, String> fileIdToAbsUrl = new HashMap<>();
-        if (resp != null && resp.getData() != null) {
-            for (ImageFileDTO dto : resp.getData()) {
-                fileIdToAbsUrl.put(dto.getId(), toAbsoluteUrl(dto.getPath()));
-            }
-        }
-
-        // 4) productId -> 썸네일 URL 매핑으로 변환
-        Map<Long, String> result = new HashMap<>();
-        for (Map.Entry<Long, Long> e : productToFileId.entrySet()) {
-            result.put(e.getKey(), fileIdToAbsUrl.get(e.getValue())); // 없으면 null
-        }
-        return result;
-    }
-
-
-    private <T> List<T> limit(List<T> list, int n) {
-        return list.size() <= n ? list : list.subList(0, n);
-    }
 
     public Page<ProductSummaryDto> searchProducts(ProductSearchRequest request) throws IOException {
         int page = request.getPage() != null ? request.getPage() : 0;
@@ -318,65 +295,67 @@ public class ProductService {
         // 상품 조회
         List<Product> products = productRepository.findAllById(productIds);
 
-        // 상품 이미지 매핑 : productId -> 첫 번째 이미지 ID
-        Map<Long, Long> productImageIdMap = products.stream()
-                .collect(Collectors.toMap(
-                        Product::getId,
-                        p -> p.getProductImages().stream()
-                                .min(Comparator.comparingInt(ProductImage::getSortOrder))
-                                .orElseThrow(() -> new IllegalStateException("Product has no images"))
-                                .getId()
-                                .getImageFileId()
-                ));
+        return toProductSummaryDtos(products, userId);
 
-        // FileService 요청
-        String idsParam = productImageIdMap.values().stream()
-                .map(String::valueOf)
-                .collect(Collectors.joining(","));
-
-        Map<Long, String> imageUrlMap = new HashMap<>();
-        ApiResponse<List<ImageFileDTO>> response = fileClient.getImageFilesByIds(idsParam);
-        for (ImageFileDTO dto : response.getData()) {
-            imageUrlMap.put(dto.getId(), dto.getPath());
-        }
-
-        // 찜 여부 조회 (로그인 시만)
-        Map<Long, Boolean> likedMap;
-        if (userId != null) {
-            List<Wishlist> wishlists = wishlistRepository.findAllByUserIdAndProductIdIn(userId, productIds);
-            likedMap = wishlists.stream()
-                    .collect(Collectors.toMap(
-                            w -> w.getProduct().getId(),
-                            w -> true
-                    ));
-        } else {
-            likedMap = Collections.emptyMap();
-        }
-
-        // DTO 변환
-        return products.stream().map(product -> {
-            Long imageId = productImageIdMap.get(product.getId());
-            String thumbnailUrl = toAbsoluteUrl(imageUrlMap.get(imageId));
-
-            Boolean isLiked = likedMap.getOrDefault(product.getId(), false);
-
-            // 읍면동
-            String emd = product.getTradeAreas().get(0).getArea().getName();
-
-            return ProductSummaryDto.builder()
-                    .id(product.getId())
-                    .sellerId(product.getSellerId())
-                    .name(product.getName())
-                    .thumbnailUrl(thumbnailUrl)
-                    .inWishlist(isLiked)
-                    .price(product.getPrice())
-                    .emd(emd)
-                    .createdAt(product.getCreatedAt())
-                    .productStatus(product.getProductStatus().name())
-                    .tradeStatus(product.getTradeStatus().name())
-                    .isDeleted(product.getIsDeleted())
-                    .build();
-        }).toList();
+//        // 상품 이미지 매핑 : productId -> 첫 번째 이미지 ID
+//        Map<Long, Long> productImageIdMap = products.stream()
+//                .collect(Collectors.toMap(
+//                        Product::getId,
+//                        p -> p.getProductImages().stream()
+//                                .min(Comparator.comparingInt(ProductImage::getSortOrder))
+//                                .orElseThrow(() -> new IllegalStateException("Product has no images"))
+//                                .getId()
+//                                .getImageFileId()
+//                ));
+//
+//        // FileService 요청
+//        String idsParam = productImageIdMap.values().stream()
+//                .map(String::valueOf)
+//                .collect(Collectors.joining(","));
+//
+//        Map<Long, String> imageUrlMap = new HashMap<>();
+//        ApiResponse<List<ImageFileDTO>> response = fileClient.getImageFilesByIds(idsParam);
+//        for (ImageFileDTO dto : response.getData()) {
+//            imageUrlMap.put(dto.getId(), dto.getPath());
+//        }
+//
+//        // 찜 여부 조회 (로그인 시만)
+//        Map<Long, Boolean> likedMap;
+//        if (userId != null) {
+//            List<Wishlist> wishlists = wishlistRepository.findAllByUserIdAndProductIdIn(userId, productIds);
+//            likedMap = wishlists.stream()
+//                    .collect(Collectors.toMap(
+//                            w -> w.getProduct().getId(),
+//                            w -> true
+//                    ));
+//        } else {
+//            likedMap = Collections.emptyMap();
+//        }
+//
+//        // DTO 변환
+//        return products.stream().map(product -> {
+//            Long imageId = productImageIdMap.get(product.getId());
+//            String thumbnailUrl = toAbsoluteUrl(imageUrlMap.get(imageId));
+//
+//            Boolean isLiked = likedMap.getOrDefault(product.getId(), false);
+//
+//            // 읍면동
+//            String emd = product.getTradeAreas().get(0).getArea().getName();
+//
+//            return ProductSummaryDto.builder()
+//                    .id(product.getId())
+//                    .sellerId(product.getSellerId())
+//                    .name(product.getName())
+//                    .thumbnailUrl(thumbnailUrl)
+//                    .inWishlist(isLiked)
+//                    .price(product.getPrice())
+//                    .emd(emd)
+//                    .createdAt(product.getCreatedAt())
+//                    .productStatus(product.getProductStatus().name())
+//                    .tradeStatus(product.getTradeStatus().name())
+//                    .isDeleted(product.getIsDeleted())
+//                    .build();
+//        }).toList();
     }
 
 
@@ -386,97 +365,123 @@ public class ProductService {
      * @return 상품 엔티티
      */
     @Transactional(readOnly = true)
-    public ProductDetailDTO getProductDetail(Long productId) {
-        // 엔티티 조회
+    public ProductDetailDTO getProductDetail(Long productId, Long userId) {
+        // 1. 상품 조회
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다. ID: " + productId));
 
-        // -- 판매 유저 조회 및 판매 유저의 최신 판매 상품 3개 조회 --
-        // 판매자 정보 조회 (UserClient)
+        // 2. 판매자 정보 조회 + 거래/리뷰 데이터 보강
         Long sellerId = product.getSellerId();
+        UserDTO sellerInfo = getSellerInfo(sellerId);
+
+        // 3. 판매자의 최신 상품 3개 DTO 변환
+        List<Product> sellerProducts = productRepository.findTop3BySellerIdOrderByCreatedAtDesc(sellerId);
+        List<ProductSummaryDto> latestProductDtos = toProductSummaryDtos(sellerProducts, userId);
+
+        // 4. 현재 상품 이미지 전체 DTO 변환
+        List<ProductImageDTO> images = toProductImageDtos(product);
+
+        // 5. 찜 여부 및 상품 찜 수
+        boolean inWishlist = false;
+        if (userId != null) {
+            inWishlist = wishlistRepository.existsByUserIdAndProductId(userId, productId);
+        }
+        long wishlistCount = wishlistRepository.countByProductId(productId);
+
+        // 6. 최종 DTO 반환
+        return ProductDetailDTO.builder()
+                .currentProduct(ProductDTO.fromEntity(product, images, (int) wishlistCount, inWishlist))
+                .sellerInfo(sellerInfo)
+                .sellerRecentProducts(latestProductDtos)
+                .build();
+    }
+
+
+    // 판매자 정보 조회
+    private UserDTO getSellerInfo(Long sellerId) {
         ApiResponse<UserDTO> sellerResponse = userClient.getUserInfo(sellerId);
         UserDTO sellerInfo = sellerResponse.getData();
 
-        // 판매자 거래횟수 조회
-        Integer tradeCount = productRepository.countByTradeStatusAndSellerIdOrBuyerId(TradeStatus.SOLD, sellerId, sellerId);
-        // 판매자 리뷰개수 조회
+        Integer tradeCount =
+                productRepository.countByTradeStatusAndSellerIdOrBuyerId(TradeStatus.SOLD, sellerId, sellerId);
+        // TODO: 리뷰 API 연동
         Integer reviewCount = 44;
 
         sellerInfo.setTradeCount(tradeCount);
         sellerInfo.setReviewCount(reviewCount);
 
-        // 판매자의 최신 상품 3개 조회
-        List<Product> sellerProducts = productRepository.findTop3BySellerIdOrderByCreatedAtDesc(sellerId);
+        return sellerInfo;
+    }
 
-        // sellerRecentProducts 리스트에서 각 상품의 대표 이미지(썸네일) ID를 추출하여 Map으로 변환
-        // Map의 Key: 상품 ID, Value: 대표 이미지 ID (sortOrder가 가장 작은 이미지)
-        Map<Long, Long> productToThumbnailId = sellerProducts.stream()
+    // 상품 요약 정보 리스트로 변환
+    private List<ProductSummaryDto> toProductSummaryDtos(
+            List<Product> products,
+            @Nullable Long loginUserId
+    ) {
+        if (products.isEmpty()) return List.of();
+
+        // 썸네일 추출
+        Map<Long, Long> productToThumbnailId = products.stream()
                 .collect(Collectors.toMap(
                         Product::getId,
-                        sellerProduct -> sellerProduct.getProductImages().stream()
+                        p -> p.getProductImages().stream()
                                 .min(Comparator.comparingInt(ProductImage::getSortOrder))
-                                .orElseThrow(() -> new IllegalStateException(
-                                        "상품에 이미지가 존재하지 않습니다. 상품ID: " + sellerProduct.getId()))
+                                .orElseThrow(() -> new IllegalStateException("상품 이미지 없음: " + p.getId()))
                                 .getId()
                                 .getImageFileId()
                 ));
 
-        String sellerProductImageIdsParam = productToThumbnailId.values().stream()
-                .map(String::valueOf)
-                .collect(Collectors.joining(","));
-        ApiResponse<List<ImageFileDTO>> sellerProductResponse = fileClient.getImageFilesByIds(sellerProductImageIdsParam);
+        // FileClient 조회
+        Map<Long, String> paths = resolveImagePaths(productToThumbnailId.values());
 
-        // 3. ID → URL Map
-        Map<Long, String> sellerProductPaths = sellerProductResponse.getData().stream()
-                .collect(Collectors.toMap(ImageFileDTO::getId, ImageFileDTO::getPath));
+        // 로그인한 경우 → 유저의 위시리스트 ID 한 번만 조회
+        Set<Long> wishlistIds = loginUserId != null
+                ? wishlistRepository.findProductIdsByUserId(loginUserId)
+                : Set.of();
 
-        List<ProductSummaryDto> latestProductDtos = sellerProducts.stream()
-                .map(sellerProduct -> {
-                    Long thumbnailId = productToThumbnailId.get(sellerProduct.getId());
-                    String thumbnailUrl = sellerProductPaths.get(thumbnailId);
-
-                    return ProductSummaryDto.builder()
-                            .id(sellerProduct.getId())
-                            .thumbnailUrl(toAbsoluteUrl(thumbnailUrl))
-                            .inWishlist(false) // 필요시 세팅
-                            .price(sellerProduct.getPrice())
-                            .emd(sellerProduct.getTradeAreas().get(0).getArea().getName())
-                            .createdAt(sellerProduct.getCreatedAt())
-                            .productStatus(sellerProduct.getProductStatus().name())
-                            .tradeStatus(sellerProduct.getTradeStatus().name())
-                            .isDeleted(sellerProduct.getIsDeleted())
-                            .build();
-                })
+        return products.stream()
+                .map(p -> ProductSummaryDto.fromEntity(
+                        p,
+                        toAbsoluteUrl(paths.get(productToThumbnailId.get(p.getId()))),
+                        wishlistIds.contains(p.getId())
+                ))
                 .toList();
+    }
 
-        // 이미지 파일 ID 리스트 추출
-        List<Long> imageIds = product.getProductImages()
-                .stream()
+
+    // 상품 이미지 리스트
+    private List<ProductImageDTO> toProductImageDtos(Product product) {
+        List<Long> imageIds = product.getProductImages().stream()
                 .map(img -> img.getId().getImageFileId())
                 .toList();
 
-        String idsParam = imageIds.stream().map(String::valueOf).collect(Collectors.joining(","));
-        ApiResponse<List<ImageFileDTO>> response = fileClient.getImageFilesByIds(idsParam);
+        Map<Long, String> paths = resolveImagePaths(imageIds);
 
-        Map<Long, String> paths = response.getData().stream()
-                .collect(Collectors.toMap(ImageFileDTO::getId, ImageFileDTO::getPath));
-
-        List<ProductImageDTO> images = product.getProductImages().stream()
+        return product.getProductImages().stream()
+                .sorted(Comparator.comparingInt(ProductImage::getSortOrder))
                 .map(img -> ProductImageDTO.builder()
                         .imageFileId(img.getId().getImageFileId())
                         .sortOrder(img.getSortOrder())
                         .url(toAbsoluteUrl(paths.get(img.getId().getImageFileId())))
-                        .build())
-                .collect(Collectors.toList());
-
-
-        return ProductDetailDTO.builder()
-                .currentProduct(ProductDTO.fromEntity(product, images))
-                .sellerInfo(sellerInfo)
-                .sellerRecentProducts(latestProductDtos)
-                .build();
-
+                        .build()
+                )
+                .toList();
     }
+
+    // 이미지 경로 가져오기
+    private Map<Long, String> resolveImagePaths(Collection<Long> imageIds) {
+        if (imageIds.isEmpty()) return Map.of();
+
+        String idsParam = imageIds.stream()
+                .map(String::valueOf)
+                .collect(Collectors.joining(","));
+
+        ApiResponse<List<ImageFileDTO>> response = fileClient.getImageFilesByIds(idsParam);
+
+        return response.getData().stream()
+                .collect(Collectors.toMap(ImageFileDTO::getId, ImageFileDTO::getPath));
+    }
+
 
     /***
      * 상품 등록 기능
@@ -543,6 +548,7 @@ public class ProductService {
 
         return saved.getId();
     }
+    // ------------ util --------------
 
     /***
      * Elasticsearch에 상품 데이터를 색인
@@ -556,6 +562,33 @@ public class ProductService {
                 .id(doc.getId().toString())
                 .document(doc)
         );
+    }
+
+
+    /**
+     * FileClient를 통해 이미지 파일 ID → 절대 URL 맵핑을 조회한다.
+     *
+     * @param fileIds 조회할 파일 ID 리스트
+     * @return fileId → 절대 URL 매핑
+     */
+    private Map<Long, String> getFileUrlsByIds(Collection<Long> fileIds) {
+        if (fileIds == null || fileIds.isEmpty()) return Collections.emptyMap();
+
+        String idsParam = fileIds.stream()
+                .map(String::valueOf)
+                .collect(Collectors.joining(","));
+
+        ApiResponse<List<ImageFileDTO>> resp = fileClient.getImageFilesByIds(idsParam);
+
+        if (resp == null || resp.getData() == null) {
+            return Collections.emptyMap();
+        }
+
+        return resp.getData().stream()
+                .collect(Collectors.toMap(
+                        ImageFileDTO::getId,
+                        dto -> toAbsoluteUrl(dto.getPath())
+                ));
     }
 
 }

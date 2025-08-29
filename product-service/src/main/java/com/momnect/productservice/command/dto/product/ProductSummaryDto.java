@@ -26,6 +26,7 @@ public class ProductSummaryDto {
     private String productStatus;
     private String tradeStatus;
     private Boolean isDeleted;
+    private Boolean hasWrittenReview; // 구매 상품일 경우 리뷰 써야되는지 여부
 
     public static ProductSummaryDto fromDocument(ProductDocument doc) {
         return ProductSummaryDto.builder()
@@ -43,19 +44,20 @@ public class ProductSummaryDto {
                 .build();
     }
 
-    public static ProductSummaryDto fromEntity(Product product, String thumbnailUrl, Boolean isLiked) {
+    public static ProductSummaryDto fromEntity(Product product, String thumbnailUrl, Boolean inWishlist) {
         return ProductSummaryDto.builder()
                 .id(product.getId())
                 .sellerId(product.getSellerId())
                 .name(product.getName())
                 .thumbnailUrl(thumbnailUrl)
-                .inWishlist(isLiked)
+                .inWishlist(inWishlist)
                 .price(product.getPrice())
                 .emd(product.getTradeAreas().get(0).getArea().getName())
                 .createdAt(product.getCreatedAt())
                 .productStatus(product.getProductStatus().name())
                 .tradeStatus(product.getTradeStatus().name())
                 .isDeleted(product.getIsDeleted())
+                .hasWrittenReview(false) // TODO 임시
                 .build();
     }
 }
