@@ -1,21 +1,25 @@
 package com.momnect.postservice.command.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import lombok.*;
 
-import java.util.List;
-
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
+@Getter @Setter
+@NoArgsConstructor @AllArgsConstructor
+@Builder
 public class PostRequestDto {
+
+    @NotNull
     private Long userId;
+
+    @NotBlank
     private String title;
+
+    @NotBlank
     private String contentHtml;
-    private Boolean hasImage;
+
+    @NotBlank
     private String categoryName;
-    private List<String> imageUrls;
+
+    private Boolean hasImage;
 }

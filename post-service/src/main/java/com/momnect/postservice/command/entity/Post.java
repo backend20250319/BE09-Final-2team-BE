@@ -2,9 +2,8 @@ package com.momnect.postservice.command.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -13,65 +12,61 @@ import java.util.List;
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@EntityListeners(AuditingEntityListener.class)
+@AllArgsConstructor
+@Builder
+@Table(name = "post")
 public class Post {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
-    private Long userId;
-
-    @Column(nullable = false, length = 255)
-    private String title;
-
-    @Lob
-    @Column(nullable = false)
-    private String contentHtml;
-
-    @Column(nullable = false)
-    private int viewCount = 0;
-
-    @Column(nullable = false)
-    private Boolean hasImage = false;
-
-    @Column(nullable = false)
-    private Boolean isDeleted = false;
-
-    @CreatedDate
-    @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @LastModifiedDate
-    @Column(nullable = false)
-    private LocalDateTime updatedAt;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(nullable = false)
+    // 카테고리 매핑 (이미 Long categoryId로 쓰는 중이면 아래를 Long으로 바꾸세요)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "category_id", nullable = false)
     private PostCategory category;
 
+    @Column(nullable = false)
+    private String title;
+
+    @Column(name = "content_html", nullable = false, columnDefinition = "TEXT")
+    private String contentHtml;
+
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
+
+    @Builder.Default
+    @Column(name = "has_image", nullable = false)
+    private boolean hasImage = false;
+
+    @Builder.Default
+    @Column(name = "is_deleted", nullable = false)
+    private boolean deleted = false;
+
+    @Builder.Default
+    @Column(name = "view_count", nullable = false)
+    private int viewCount = 0;
+
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false, nullable = false)
+    private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+
+    // ✅ 에디터 파일 매핑 (tbl_post_editor)
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<PostEditorFile> editorFiles = new ArrayList<>();
+    @Builder.Default
+    private List<PostEditor> editorFiles = new ArrayList<>();
 
-    public void addViews() {
-        this.viewCount++;
-    }
-    public void update(String title, String contentHtml, Boolean hasImage) {
-        this.title = title;
-        this.contentHtml = contentHtml;
-        this.hasImage = hasImage;
-    }
-    public void softDelete() {
-        this.isDeleted = true;
+    // DTO에서 getHasImage()를 호출하므로 브릿지 메서드 하나 추가
+    public boolean getHasImage() {
+        return hasImage;
     }
 
-    @Builder
-    public Post(Long userId, String title, String contentHtml, Boolean hasImage, PostCategory category) {
-        this.userId = userId;
-        this.title = title;
-        this.contentHtml = contentHtml;
-        this.hasImage = hasImage;
-        this.category = category;
+    // 관계 편의 메서드 (필요하면 사용)
+    public void addEditorFile(PostEditor editor) {
+        editorFiles.add(editor);
+        editor.setPost(this);
     }
 }
-
