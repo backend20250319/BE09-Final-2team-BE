@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class LocationSearchDTO {
 
+    private Long id;
     private String sido;    // 시도
     private String sigungu; //시군구
     private String emd;     // 읍면동
