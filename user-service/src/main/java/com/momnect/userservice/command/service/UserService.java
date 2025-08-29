@@ -110,10 +110,12 @@ public class UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다."));
 
+        // 설정된 거래지역이 없는 경우 빈 리스트 반환
         if (user.getTradeAreaIds() == null || user.getTradeAreaIds().isEmpty()) {
             return Collections.emptyList();
         }
 
+        // 상품 서비스에서 지역 ID들로 상세 정보 조회
         return productClient.getAreasByIds(user.getTradeAreaIds()).getData();
     }
 
