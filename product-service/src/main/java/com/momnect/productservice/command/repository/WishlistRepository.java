@@ -9,8 +9,15 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Set;
+import java.util.Optional;
 
 public interface WishlistRepository extends JpaRepository<Wishlist, Long> {
+    Optional<Wishlist> findByProductIdAndUserId(Long productId, Long userId);
+
+    List<Wishlist> findAllByUserId(Long userId);
+
+    void deleteByProductIdAndUserId(Long productId, Long userId);
+
     // 특정 유저가 여러 상품을 찜한 목록 조회
     List<Wishlist> findAllByUserIdAndProductIdIn(Long userId, List<Long> productIds);
 
