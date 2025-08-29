@@ -1,6 +1,6 @@
 package com.momnect.userservice.config;
 
-import com.momnect.userservice.security.CookieAuthenticationFilter;
+import com.momnect.userservice.security.JwtAuthenticationFilter;
 import com.momnect.userservice.security.RestAccessDeniedHandler;
 import com.momnect.userservice.security.RestAuthenticationEntryPoint;
 
@@ -30,7 +30,7 @@ public class SecurityConfig {
 
     private final RestAccessDeniedHandler restAccessDeniedHandler;
     private final RestAuthenticationEntryPoint restAuthenticationEntryPoint;
-    private final CookieAuthenticationFilter cookieAuthenticationFilter;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -60,14 +60,17 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/auth/validate", "/auth/validate-cookie").permitAll()
                         .requestMatchers(HttpMethod.GET, "/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/users/check").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/users/search-areas").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/users/{userId}/profile-page").permitAll() // 타사용자 프로필 페이지 정보
+                        .requestMatchers(HttpMethod.GET, "/users/{userId}/my-trade-locations").permitAll()
                         .requestMatchers(HttpMethod.GET, "/users/{userId}").permitAll()
                         .requestMatchers(HttpMethod.GET, "/users/{userId}/exists").permitAll()
                         .requestMatchers(HttpMethod.GET, "/users/{userId}/basic").permitAll()
+                        .requestMatchers(HttpMethod.PUT, "/users/me/trade-locations").authenticated()
                         .anyRequest().authenticated()
 >>>>>>> 984fcc69a9bb390937e219a0dbb4da3b12fc58de
                 )
-
-                .addFilterBefore(cookieAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
         ;
 
         return http.build();

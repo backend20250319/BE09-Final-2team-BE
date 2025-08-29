@@ -1,4 +1,4 @@
-package com.momnect.userservice.command.dto;
+package com.momnect.userservice.command.dto.user;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Pattern;

@@ -33,7 +33,7 @@ public class PostResponseDto {
 
         // 파일이 있는 경우(ID만)
         this.files = post.getEditorFiles().stream()
-                .filter(f -> f.getState() == 'Y')
+                .filter(f -> "Y".equalsIgnoreCase(f.getState()))
                 .map(f -> new PostEditorFileDto(f.getId()))
                 .toList();
     }

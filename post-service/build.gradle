@@ -67,3 +67,7 @@ dependencyManagement {
 tasks.named('test') {
     useJUnitPlatform()
 }
+
+dependencies {
+    implementation 'org.jsoup:jsoup:1.17.2'
+}

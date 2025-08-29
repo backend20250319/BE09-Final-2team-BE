@@ -1,8 +1,8 @@
 package com.momnect.userservice.command.service;
 
-import com.momnect.userservice.command.dto.ChildDTO;
-import com.momnect.userservice.command.dto.CreateChildRequest;
-import com.momnect.userservice.command.dto.UpdateChildRequest;
+import com.momnect.userservice.command.dto.child.ChildDTO;
+import com.momnect.userservice.command.dto.child.CreateChildRequest;
+import com.momnect.userservice.command.dto.child.UpdateChildRequest;
 import com.momnect.userservice.command.entity.Child;
 import com.momnect.userservice.command.repository.ChildRepository;
 import com.momnect.userservice.exception.UserNotFoundException;

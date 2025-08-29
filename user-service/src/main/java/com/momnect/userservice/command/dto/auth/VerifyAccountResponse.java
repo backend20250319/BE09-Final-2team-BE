@@ -1,8 +1,7 @@
-package com.momnect.userservice.command.dto;
+package com.momnect.userservice.command.dto.auth;
 
 import lombok.Builder;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 
 @Getter
 @Builder

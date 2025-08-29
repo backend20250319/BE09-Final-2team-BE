@@ -1,8 +1,7 @@
-package com.momnect.userservice.command.dto;
+package com.momnect.userservice.command.dto.child;
 
 import lombok.Builder;
 import lombok.Getter;
-import lombok.Setter;
 
 import java.time.LocalDate;
 
