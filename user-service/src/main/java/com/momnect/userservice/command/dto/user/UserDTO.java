@@ -1,4 +1,4 @@
-package com.momnect.userservice.command.dto;
+package com.momnect.userservice.command.dto.user;
 
 import lombok.Builder;
 import lombok.Getter;

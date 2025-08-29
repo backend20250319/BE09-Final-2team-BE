@@ -2,8 +2,11 @@ package com.momnect.userservice.command.repository;
 
 import java.util.Optional;
 
+import com.momnect.userservice.command.dto.user.PublicUserDTO;
 import com.momnect.userservice.command.entity.User;
+import feign.Param;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 @Repository

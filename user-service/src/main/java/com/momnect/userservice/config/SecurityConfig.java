@@ -48,12 +48,15 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/auth/validate", "/auth/validate-cookie").permitAll()
                         .requestMatchers(HttpMethod.GET, "/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/users/check").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/users/search-areas").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/users/{userId}/profile-page").permitAll() // 타사용자 프로필 페이지 정보
+                        .requestMatchers(HttpMethod.GET, "/users/{userId}/my-trade-locations").permitAll()
                         .requestMatchers(HttpMethod.GET, "/users/{userId}").permitAll()
                         .requestMatchers(HttpMethod.GET, "/users/{userId}/exists").permitAll()
                         .requestMatchers(HttpMethod.GET, "/users/{userId}/basic").permitAll()
+                        .requestMatchers(HttpMethod.PUT, "/users/me/trade-locations").authenticated()
                         .anyRequest().authenticated()
                 )
-
                 .addFilterBefore(cookieAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
         ;
 

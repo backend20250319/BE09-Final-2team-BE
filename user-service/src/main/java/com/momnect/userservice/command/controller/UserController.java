@@ -1,12 +1,18 @@
 package com.momnect.userservice.command.controller;
 
-import com.momnect.userservice.command.dto.*;
+import com.momnect.userservice.command.dto.auth.ChangePasswordRequest;
+import com.momnect.userservice.command.dto.child.ChildDTO;
+import com.momnect.userservice.command.dto.common.*;
+import com.momnect.userservice.command.dto.mypage.MypageDTO;
+import com.momnect.userservice.command.dto.mypage.OtherUserProfileDTO;
+import com.momnect.userservice.command.dto.user.*;
 import com.momnect.userservice.command.service.ChildService;
 import com.momnect.userservice.command.service.UserService;
 import com.momnect.userservice.common.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import jakarta.servlet.http.HttpServletRequest;
@@ -16,6 +22,7 @@ import java.util.List;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/users")
+@Slf4j
 public class UserController {
 
     private final UserService userService;
@@ -54,10 +61,9 @@ public class UserController {
         List<ChildDTO> children = childService.getChildren(userId);
 
         // 3. 거래 현황 조회 (상품 서비스 및 리뷰 서비스 연동)
-        // TODO: Feign Client를 통해 실제 거래 현황 데이터로 교체
-        TransactionSummaryDTO transactionSummary = new TransactionSummaryDTO(); // 임시 DTO 생성
-        transactionSummary.setTotalSalesCount(0);
-        transactionSummary.setPurchaseCount(0);
+        TransactionSummaryDTO transactionSummary = userService.getTransactionSummary(userId);
+
+        // 리뷰 서비스가 아직 없으므로 임시로 0 설정
         transactionSummary.setReviewCount(0);
 
         MypageDTO dashboardInfo = MypageDTO.builder()
@@ -70,13 +76,88 @@ public class UserController {
     }
 
     /**
-     * 타사용자 기본 정보 (닉네임, 이미지만) - 프론트엔드용
+     * 지역 검색 (emd 파라미터로)
+     * URL: GET /users/search-areas?keyword=
+     *
+     * @param keyword 검색할 지역의 읍면동 이름
+     * @return 검색된 지역 목록
+     */
+    @GetMapping("/search-areas")
+    public ResponseEntity<ApiResponse<List<LocationSearchDTO>>> searchTradeLocations(@RequestParam("keyword") String keyword) {
+        log.info("지역 검색 API 호출 - keyword: {}", keyword);
+        // userService의 searchAreas 메서드 호출
+        List<LocationSearchDTO> areas = userService.searchAreas(keyword);
+        return ResponseEntity.ok(ApiResponse.success(areas));
+    }
+
+    /**
+     * 내 거래지역 설정/수정
+     */
+    @PutMapping("/me/trade-locations")
+    public ResponseEntity<ApiResponse<Void>> updateTradeLocations(
+            @Valid @RequestBody UpdateTradeLocationsRequest request,
+            HttpServletRequest httpRequest) {
+
+        Long userId = getUserIdFromRequest(httpRequest);
+        userService.updateTradeLocations(userId, request.getAreaIds());
+
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    /**
+     * 내 거래지역 목록 조회
+     * URL: GET /users/my-trade-locations
+     *
+     * @param userId 현재 로그인한 사용자 ID (실제로는 SecurityContext에서 가져옴)
+     * @return 사용자가 설정한 거래지역 목록
+     */
+    @GetMapping("/{userId}/my-trade-locations")
+    public ResponseEntity<ApiResponse<List<TradeLocationDTO>>> getMyTradeLocations(@PathVariable("userId") Long userId) {
+        log.info("내 거래지역 목록 조회 API 호출 - userId: {}", userId);
+        List<TradeLocationDTO> tradeLocations = userService.getMyTradeLocations(userId);
+        return ResponseEntity.ok(ApiResponse.success(tradeLocations));
+    }
+
+    /**
+     * 구매 상품 목록 조회 (상품 서비스 연동)
+     */
+    @Operation(summary = "구매 상품 목록 조회", description = "사용자가 구매한 상품 목록을 조회합니다.")
+    @GetMapping("/me/products/purchased")
+    public ResponseEntity<ApiResponse<List<ProductSummaryDTO>>> getPurchasedProducts(HttpServletRequest request) {
+        Long userId = getUserIdFromRequest(request);
+        List<ProductSummaryDTO> products = userService.getPurchasedProducts(userId);
+        return ResponseEntity.ok(ApiResponse.success(products));
+    }
+
+    /**
+     * 판매 상품 목록 조회 (상품 서비스 연동)
+     */
+    @Operation(summary = "판매 상품 목록 조회", description = "사용자가 판매한 상품 목록을 조회합니다.")
+    @GetMapping("/me/products/sold")
+    public ResponseEntity<ApiResponse<List<ProductSummaryDTO>>> getSoldProducts(HttpServletRequest request) {
+        Long userId = getUserIdFromRequest(request);
+        List<ProductSummaryDTO> products = userService.getSoldProducts(userId);
+        return ResponseEntity.ok(ApiResponse.success(products));
+    }
+
+    /**
+     * 타사용자 기본 정보 (닉네임, 이미지만)
      */
     @Operation(summary = "타사용자 기본 정보", description = "공개 프로필 정보를 조회합니다.")
     @GetMapping("/{userId}")
     public ResponseEntity<ApiResponse<PublicUserDTO>> getUserInfo(@PathVariable Long userId) {
         PublicUserDTO userInfo = userService.getPublicUserProfile(userId);
         return ResponseEntity.ok(ApiResponse.success(userInfo));
+    }
+
+    /**
+     * 타 사용자 프로필 페이지 정보 (통합, 읽기 전용)
+     */
+    @Operation(summary = "타 사용자 프로필 페이지 통합 정보", description = "프로필, 거래 현황, 판매 상품 목록 등 타 사용자 프로필에 필요한 모든 정보 조회")
+    @GetMapping("/{userId}/profile-page")
+    public ResponseEntity<ApiResponse<OtherUserProfileDTO>> getOtherUserProfile(@PathVariable Long userId) {
+        OtherUserProfileDTO otherUserProfile = userService.getOtherUserProfile(userId);
+        return ResponseEntity.ok(ApiResponse.success(otherUserProfile));
     }
 
     /**

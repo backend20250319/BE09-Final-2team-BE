@@ -1,9 +1,9 @@
 // controller/ChildController.java
 package com.momnect.userservice.command.controller;
 
-import com.momnect.userservice.command.dto.ChildDTO;
-import com.momnect.userservice.command.dto.CreateChildRequest;
-import com.momnect.userservice.command.dto.UpdateChildRequest;
+import com.momnect.userservice.command.dto.child.ChildDTO;
+import com.momnect.userservice.command.dto.child.CreateChildRequest;
+import com.momnect.userservice.command.dto.child.UpdateChildRequest;
 import com.momnect.userservice.command.service.ChildService;
 import com.momnect.userservice.common.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;

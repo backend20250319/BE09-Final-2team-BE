@@ -1,4 +1,4 @@
-package com.momnect.userservice.command.dto;
+package com.momnect.userservice.command.dto.child;
 
 import jakarta.validation.constraints.Size;
 import lombok.Getter;

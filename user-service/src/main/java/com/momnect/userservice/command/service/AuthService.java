@@ -1,16 +1,25 @@
 package com.momnect.userservice.command.service;
 
-import com.momnect.userservice.command.dto.*;
+import com.momnect.userservice.command.dto.auth.*;
+import com.momnect.userservice.command.dto.child.ChildDTO;
+import com.momnect.userservice.command.dto.common.TradeLocationDTO;
+import com.momnect.userservice.command.dto.user.PublicUserDTO;
 import com.momnect.userservice.command.entity.User;
 import com.momnect.userservice.command.repository.UserRepository;
 import com.momnect.userservice.exception.UserNotFoundException;
 import com.momnect.userservice.jwt.JwtTokenProvider;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.momnect.userservice.command.mapper.UserMapper;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+
+import java.util.Collections;
+import java.util.List;
 
 import java.util.List;
 
@@ -24,6 +33,8 @@ public class AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
+    private final ChildService childService;      // 자녀 정보 서비스
+    private final UserService userService;       // 거래지역 조회용
 
     /**
      * 로그인: loginId + password 검증 후 AccessToken, RefreshToken 발급
@@ -51,8 +62,21 @@ public class AuthService {
         user.setRefreshToken(refreshToken);
         userRepository.save(user);
 
-        PublicUserDTO publicUserDTO = userMapper.toPublicUserDTO(user, true); // 이메일 포함
-        return new AuthResponseDTO(accessToken, refreshToken, publicUserDTO);
+        // 추가 정보 조회
+        List<ChildDTO> childList = childService.getChildren(user.getId());
+        List<TradeLocationDTO> tradeLocationList = userService.getMyTradeLocations(user.getId());
+
+        PublicUserDTO publicUserDTO = userMapper.toPublicUserDTO(user,tradeLocationList.stream()
+                .map(TradeLocationDTO::getEmd)
+                .toList());
+
+        return AuthResponseDTO.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .user(publicUserDTO)
+                .childList(childList)                 // 실제 데이터 또는 빈 리스트
+                .tradeLocationList(tradeLocationList) // 실제 데이터 또는 빈 리스트
+                .build();
     }
 
     /**
@@ -82,8 +106,15 @@ public class AuthService {
         user.setRefreshToken(refreshToken);
         userRepository.save(user);
 
-        PublicUserDTO publicUserDTO = userMapper.toPublicUserDTO(user, true); // 이메일 포함
-        return new AuthResponseDTO(accessToken, refreshToken, publicUserDTO);
+        PublicUserDTO publicUserDTO = userMapper.toPublicUserDTO(user,  Collections.emptyList());
+
+        return AuthResponseDTO.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .user(publicUserDTO)
+                .childList(Collections.emptyList())      // 빈 리스트
+                .tradeLocationList(Collections.emptyList()) // 빈 리스트
+                .build();
     }
 
     /**
