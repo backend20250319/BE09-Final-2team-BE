@@ -27,7 +27,9 @@ public class PostController {
     private final CommentService commentService;
     private final LikeService likeService;
 
-    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    // form-data: images(File), userId(Text), title(Text), contentHtml(Text), categoryName(Text)
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE)
     public ApiResponse<Long> create(
             @RequestParam("userId") Long userId,
             @RequestParam("title") String title,
@@ -35,32 +37,26 @@ public class PostController {
             @RequestParam("categoryName") String categoryName,
             @RequestPart(value = "images", required = false) List<MultipartFile> images
     ) {
-        PostRequestDto dto = new PostRequestDto();
-        dto.setUserId(userId);
-        dto.setTitle(title);
-        dto.setContentHtml(contentHtml);
-        dto.setCategoryName(categoryName);
-        dto.setHasImage(images != null && !images.isEmpty());
+        PostRequestDto dto = PostRequestDto.builder()
+                .userId(userId)
+                .title(title)
+                .contentHtml(contentHtml) // 본문 내 dataURL은 서비스에서 파일서버 URL로 치환
+                .categoryName(categoryName)
+                .build();
 
         Long id = postService.createPost(dto, images);
         return ApiResponse.success(id);
     }
 
-    // ✅ 상세 조회: post + comments + likeSummary
-    @GetMapping("/{id}")
+    @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ApiResponse<Map<String, Object>> getOne(@PathVariable Long id) {
         PostResponseDto post = postService.getPost(id);
         List<CommentDtos.Response> comments = commentService.listForPost(id);
         LikeSummaryResponse likeSummary = likeService.summary(id);
-
-        return ApiResponse.success(Map.of(
-                "post", post,
-                "comments", comments,
-                "like", likeSummary
-        ));
+        return ApiResponse.success(Map.of("post", post, "comments", comments, "like", likeSummary));
     }
 
-    @GetMapping
+    @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     public ApiResponse<Page<PostResponseDto>> list(
             @RequestParam(required = false) String category,
             Pageable pageable
@@ -68,14 +64,14 @@ public class PostController {
         return ApiResponse.success(postService.getPosts(category, pageable));
     }
 
-    @PutMapping("/{id}")
-    public ApiResponse<Long> update(@PathVariable Long id,
-                                    @RequestBody PostRequestDto dto) {
+    @PutMapping(value = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE)
+    public ApiResponse<Long> update(@PathVariable Long id, @RequestBody PostRequestDto dto) {
         postService.updatePost(id, dto);
         return ApiResponse.success(id);
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ApiResponse<Long> delete(@PathVariable Long id) {
         postService.deletePost(id);
         return ApiResponse.success(id);
