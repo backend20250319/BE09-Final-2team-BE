@@ -20,6 +20,30 @@ public class ProductController {
 
     private final ProductService productService;
 
+    // 찜하기
+    @PostMapping("/{productId}/wishlist")
+    public ResponseEntity<ApiResponse<Void>> addToWishlist(@PathVariable Long productId,
+                                                           @AuthenticationPrincipal String userId) {
+        productService.addWishlist(productId, Long.valueOf(userId));
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    // 찜취소
+    @DeleteMapping("/{productId}/wishlist")
+    public ResponseEntity<ApiResponse<Void>> removeFromWishlist(@PathVariable Long productId,
+                                                                @AuthenticationPrincipal String userId) {
+        productService.removeWishlist(productId, Long.valueOf(userId));
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    // 내 찜 목록 조회
+    @GetMapping("/me/wishlist")
+    public ResponseEntity<ApiResponse<List<ProductSummaryDto>>> getMyWishlist(
+            @AuthenticationPrincipal String userId) {
+        List<ProductSummaryDto> wishlist = productService.getMyWishlist(Long.valueOf(userId));
+        return ResponseEntity.ok(ApiResponse.success(wishlist));
+    }
+
 
     /***
      * 홈 일괄 섹션 (선택)
@@ -27,7 +51,7 @@ public class ProductController {
     @GetMapping("/sections")
     public ResponseEntity<ApiResponse<ProductSectionsResponse>> getHomeProductSections(
             @AuthenticationPrincipal String userId) {
-        ProductSectionsResponse sections = productService.getHomeProductSections(Long.valueOf(userId));
+        ProductSectionsResponse sections = productService.getHomeProductSections(parseUserId(userId));
         return ResponseEntity.ok(ApiResponse.success(sections));
     }
 
@@ -39,9 +63,10 @@ public class ProductController {
      */
     @PostMapping("/search")
     public ResponseEntity<ApiResponse<Page<ProductSummaryDto>>> searchProducts(
-            @RequestBody ProductSearchRequest request) throws IOException {
+            @RequestBody ProductSearchRequest request,
+            @AuthenticationPrincipal String userId) throws IOException {
 
-        Page<ProductSummaryDto> result = productService.searchProducts(request);
+        Page<ProductSummaryDto> result = productService.searchProducts(request, parseUserId(userId));
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 
@@ -56,9 +81,9 @@ public class ProductController {
     @GetMapping("/summary")
     public ResponseEntity<ApiResponse<List<ProductSummaryDto>>> getProductSummaries(
             @RequestParam List<Long> productIds,
-            @AuthenticationPrincipal Long userId) {
+            @AuthenticationPrincipal String userId) {
 
-        List<ProductSummaryDto> summaries = productService.getProductsByIds(productIds, userId);
+        List<ProductSummaryDto> summaries = productService.getProductsByIds(productIds, parseUserId(userId));
         return ResponseEntity.ok(ApiResponse.success(summaries));
     }
 
@@ -68,9 +93,11 @@ public class ProductController {
      * @return ProductDTO
      */
     @GetMapping("/{productId}")
-    public ResponseEntity<ApiResponse<ProductDetailDTO>> getProduct(@PathVariable Long productId) {
+    public ResponseEntity<ApiResponse<ProductDetailDTO>> getProduct(
+            @PathVariable Long productId,
+            @AuthenticationPrincipal String userId) {
 
-        ProductDetailDTO productDetail = productService.getProductDetail(productId);
+        ProductDetailDTO productDetail = productService.getProductDetail(productId, parseUserId(userId));
         return ResponseEntity.ok(ApiResponse.success(productDetail));
     }
 
@@ -87,5 +114,21 @@ public class ProductController {
         Long productId = productService.createProduct(dto, userId);
         Map<String, Long> result = Map.of("productId", productId);
         return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    /**
+     * @param principal 스프링 시큐리티 @AuthenticationPrincipal 값 (String)
+     * @return Long userId (비로그인 또는 invalid면 null)
+     */
+    private static final String ANONYMOUS = "anonymousUser";
+    public static Long parseUserId(String principal) {
+        if (principal == null || ANONYMOUS.equals(principal)) {
+            return null;
+        }
+        try {
+            return Long.valueOf(principal);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 }

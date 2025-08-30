@@ -16,6 +16,7 @@ import java.util.stream.Collectors;
 public class ProductDTO {
 
     private Long id;
+    private Long categoryId;
     private String categoryName;
     private Long sellerId;
     private Long buyerId;
@@ -29,18 +30,22 @@ public class ProductDTO {
     private List<String> hashtags;
     private List<String> tradeAreas;
     private Integer viewCount;
+    private Integer wishlistCount;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime soldAt;
     private LocalDateTime deletedAt;
     private Boolean isDeleted;
+    private Boolean inWishlist;
     private Long createdBy;
     private Long updatedBy;
 
     // Entity -> DTO 변환
-    public static ProductDTO fromEntity(Product product, List<ProductImageDTO> images) {
+    public static ProductDTO fromEntity(
+            Product product, List<ProductImageDTO> images, Integer wishlistCount, Boolean inWishlist) {
         return ProductDTO.builder()
                 .id(product.getId())
+                .categoryId(product.getCategory().getId())
                 .categoryName(product.getCategory().getName())
                 .sellerId(product.getSellerId())
                 .buyerId(product.getBuyerId())
@@ -64,11 +69,13 @@ public class ProductDTO {
                                 .collect(Collectors.toList())
                 )
                 .viewCount(product.getViewCount())
+                .wishlistCount(wishlistCount)
                 .createdAt(product.getCreatedAt())
                 .updatedAt(product.getUpdatedAt())
                 .soldAt(product.getSoldAt())
                 .deletedAt(product.getDeletedAt())
                 .isDeleted(product.getIsDeleted())
+                .inWishlist(inWishlist)
                 .createdBy(product.getCreatedBy())
                 .updatedBy(product.getUpdatedBy())
                 .build();
