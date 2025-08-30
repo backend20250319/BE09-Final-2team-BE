@@ -36,7 +36,7 @@ public class ProductSummaryDto {
                 .thumbnailUrl(null) // ES에는 이미지 URL이 없으므로 null 처리 (필요시 별도 인덱싱)
                 .inWishlist(false)  // ES 검색에는 유저별 찜 여부가 없으므로 기본 false
                 .price(doc.getPrice())
-                .emd(null) // ES Document에는 지역명 없음 → 나중에 별도 인덱싱/조인 필요
+                .emd(doc.getEmd()) // ES Document에는 지역명 없음 → 나중에 별도 인덱싱/조인 필요
                 .createdAt(toLocalDateTime(doc.getCreatedAt()))
                 .productStatus(doc.getProductStatus())
                 .tradeStatus(doc.getTradeStatus())

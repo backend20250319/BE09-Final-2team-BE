@@ -1,11 +1,14 @@
 package com.momnect.productservice.command.service;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.FieldValue;
+import co.elastic.clients.elasticsearch._types.SortOptions;
 import co.elastic.clients.elasticsearch._types.SortOrder;
 import co.elastic.clients.elasticsearch._types.query_dsl.BoolQuery;
 import co.elastic.clients.elasticsearch._types.query_dsl.NumberRangeQuery;
 import co.elastic.clients.elasticsearch.core.SearchResponse;
 import co.elastic.clients.elasticsearch.core.search.Hit;
+import co.elastic.clients.json.JsonData;
 import com.momnect.productservice.command.client.FileClient;
 import com.momnect.productservice.command.client.UserClient;
 import com.momnect.productservice.command.client.dto.ChildDTO;
@@ -223,16 +226,26 @@ public class ProductService {
         return getPopularTop30(userId);
     }
 
-
-    public Page<ProductSummaryDto> searchProducts(ProductSearchRequest request) throws IOException {
+    public Page<ProductSummaryDto> searchProducts(ProductSearchRequest request, Long userId) throws IOException {
         int page = request.getPage() != null ? request.getPage() : 0;
         int size = request.getSize() != null ? request.getSize() : 20;
 
-        // BoolQuery 빌드
-        var boolQuery = new BoolQuery.Builder()
-                .must(m -> m.term(t -> t.field("isDeleted").value(false)))
-                .mustNot(m -> m.term(t -> t.field("tradeStatus").value("SOLD")));
+        // 필수값 검증 (query 또는 categoryId는 반드시 하나 필요)
+        if ((request.getQuery() == null || request.getQuery().isBlank())
+                && request.getCategoryId() == null) {
+            throw new IllegalArgumentException("검색 조건(query 또는 categoryId) 중 하나는 필수입니다.");
+        }
 
+        // BoolQuery 시작
+        BoolQuery.Builder boolQuery = new BoolQuery.Builder()
+                .must(m -> m.term(t -> t.field("isDeleted").value(false)));
+
+        // 판매완료 제외 옵션
+        if (Boolean.TRUE.equals(request.getExcludeSoldOut())) {
+            boolQuery.mustNot(m -> m.term(t -> t.field("tradeStatus").value("SOLD")));
+        }
+
+        // 키워드 검색 (name, content, hashtags)
         if (request.getQuery() != null && !request.getQuery().isBlank()) {
             boolQuery.should(s -> s.match(m -> m.field("name").query(request.getQuery())))
                     .should(s -> s.match(m -> m.field("content").query(request.getQuery())))
@@ -240,26 +253,62 @@ public class ProductService {
                     .minimumShouldMatch("1");
         }
 
+        // 카테고리
         if (request.getCategoryId() != null) {
-            boolQuery.must(m -> m.term(t -> t
-                    .field("categoryId")
-                    .value(request.getCategoryId().toString()))); // value는 보통 String 처리
+            boolQuery.must(m -> m.term(t -> t.field("categoryId").value(request.getCategoryId())));
         }
 
-        if (request.getMinPrice() != null) {
-            NumberRangeQuery minPriceQuery = new NumberRangeQuery.Builder()
-                    .field("price")
-                    .gte(request.getMinPrice().doubleValue())   // 그냥 Double/Long 값 넣기
-                    .build();
-            boolQuery.must(m -> m.range(r -> r.number(minPriceQuery)));
+        // 가격 범위 (NumberRangeQuery 사용)
+        if (request.getPriceMin() != null || request.getPriceMax() != null) {
+            NumberRangeQuery.Builder priceRange = new NumberRangeQuery.Builder().field("price");
+
+            if (request.getPriceMin() != null) {
+                priceRange.gte(request.getPriceMin().doubleValue());
+            }
+            if (request.getPriceMax() != null) {
+                priceRange.lte(request.getPriceMax().doubleValue());
+            }
+
+            boolQuery.must(m -> m.range(r -> r.number(priceRange.build())));
         }
 
-        if (request.getMaxPrice() != null) {
-            NumberRangeQuery maxPriceQuery = new NumberRangeQuery.Builder()
-                    .field("price")
-                    .lte(request.getMaxPrice().doubleValue())   // Integer → long
-                    .build();
-            boolQuery.must(m -> m.range(r -> r.number(maxPriceQuery)));
+        // 추천 연령대 (enum → name)
+        if (request.getAgeGroups() != null && !request.getAgeGroups().isEmpty()) {
+            boolQuery.must(m -> m.terms(t -> t.field("recommendedAge.keyword")
+                    .terms(ts -> ts.value(request.getAgeGroups().stream()
+                            .map(Enum::name)
+                            .map(FieldValue::of)
+                            .toList()))));
+        }
+
+        // 지역
+        if (request.getAreaIds() != null && !request.getAreaIds().isEmpty()) {
+            boolQuery.must(m -> m.terms(t -> t.field("tradeAreaIds")
+                    .terms(ts -> ts.value(request.getAreaIds().stream()
+                            .map(FieldValue::of)
+                            .toList()))));
+        }
+
+        // 상태 (NEW, USED)
+        if (request.getStatuses() != null && !request.getStatuses().isEmpty()) {
+            boolQuery.must(m -> m.terms(t -> t.field("productStatus.keyword")
+                    .terms(ts -> ts.value(request.getStatuses().stream()
+                            .map(Enum::name)
+                            .map(v -> FieldValue.of(JsonData.of(v)))
+                            .toList()))));
+        }
+
+        // 정렬 옵션 매핑
+        SortOptions sortOption;
+        switch (request.getSort()) {
+            case LATEST -> sortOption = new SortOptions.Builder()
+                    .field(f -> f.field("createdAt").order(SortOrder.Desc)).build();
+            case PRICE_ASC -> sortOption = new SortOptions.Builder()
+                    .field(f -> f.field("price").order(SortOrder.Asc)).build();
+            case PRICE_DESC -> sortOption = new SortOptions.Builder()
+                    .field(f -> f.field("price").order(SortOrder.Desc)).build();
+            default -> sortOption = new SortOptions.Builder()
+                    .field(f -> f.field("createdAt").order(SortOrder.Desc)).build();
         }
 
         // 검색 실행
@@ -268,13 +317,34 @@ public class ProductService {
                         .from(page * size)
                         .size(size)
                         .query(q -> q.bool(boolQuery.build()))
-                        .sort(sort -> sort.field(f -> f.field("createdAt").order(SortOrder.Desc))),
+                        .sort(sortOption),
                 ProductDocument.class);
+
+        Set<Long> wishlistProductIds;
+        if (userId != null) {
+            wishlistProductIds = wishlistRepository.findProductIdsByUserId(userId);
+        } else {
+            wishlistProductIds = Collections.emptySet();
+        }
 
         List<ProductSummaryDto> contents = response.hits().hits().stream()
                 .map(Hit::source)
                 .filter(Objects::nonNull)
-                .map(ProductSummaryDto::fromDocument)
+                .map(doc -> {
+                    ProductSummaryDto dto = ProductSummaryDto.fromDocument(doc);
+
+                    // 찜 여부
+                    dto.setInWishlist(wishlistProductIds.contains(dto.getId()));
+
+                    // 썸네일 URL
+                    if (doc.getThumbnailImagePath() != null) {
+                        // 절대 경로가 아니라면 도메인 붙여주기
+                        String thumbnailUrl = toAbsoluteUrl(doc.getThumbnailImagePath());
+                        dto.setThumbnailUrl(thumbnailUrl);
+                    }
+
+                    return dto;
+                })
                 .toList();
 
         return new PageImpl<>(contents, PageRequest.of(page, size), response.hits().total().value());
@@ -543,8 +613,19 @@ public class ProductService {
             saved.getProductHashtags().add(ph);
         }
 
-        // Elasticsearch 색인
-        indexProduct(saved);
+        /** Elasticsearch 색인 **/
+        // emd 추출
+        Area area = areaRepository.findById(dto.getAreaIds().get(0))
+                .orElseThrow(() -> new IllegalArgumentException("Invalid area ID: " + dto.getAreaIds().get(0)));
+        String emd = area.getName();
+
+
+        // 썸네일 추출
+        Long firstImageFileId = dto.getImageFileIds().get(0);
+        ApiResponse<List<ImageFileDTO>> response = fileClient.getImageFilesByIds(firstImageFileId.toString());
+        String thumbnailImagePath = response.getData().get(0).getPath();
+
+        indexProduct(saved, emd, thumbnailImagePath, dto.getAreaIds());
 
         return saved.getId();
     }
@@ -553,9 +634,11 @@ public class ProductService {
     /***
      * Elasticsearch에 상품 데이터를 색인
      * @param product 색인할 상품 엔티티
+     * @param emd
+     * @param thumbnailImagePath
      */
-    public void indexProduct(Product product) throws IOException {
-        ProductDocument doc = ProductDocument.fromEntity(product);
+    public void indexProduct(Product product, String emd, String thumbnailImagePath, List<Integer> tradeAreaIds) throws IOException {
+        ProductDocument doc = ProductDocument.fromEntity(product, emd, thumbnailImagePath, tradeAreaIds);
 
         esClient.index(i -> i
                 .index("products")

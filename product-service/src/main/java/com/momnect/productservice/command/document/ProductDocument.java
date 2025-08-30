@@ -11,8 +11,8 @@ import java.util.stream.Collectors;
 
 @Getter
 @Setter
-@NoArgsConstructor   // ⬅️ 추가
-@AllArgsConstructor  // ⬅️ 추가
+@NoArgsConstructor
+@AllArgsConstructor
 @Builder
 public class ProductDocument {
 
@@ -31,11 +31,15 @@ public class ProductDocument {
     // LocalDateTime 대신 epoch millis 로 저장
     private Long createdAt;
     private Long updatedAt;
-//    private Long soldAt;
+    private Long soldAt;
 
     private Boolean isDeleted;
 
-    public static ProductDocument fromEntity(Product product) {
+    private String emd;                  // 행정동 정보
+    private String thumbnailImagePath;   // 대표 이미지 경로
+    private List<Integer> tradeAreaIds;     // 거래지역 ids
+
+    public static ProductDocument fromEntity(Product product, String emd, String thumbnailImagePath, List<Integer> tradeAreaIds) {
         return ProductDocument.builder()
                 .id(product.getId())
                 .categoryId(product.getCategory().getId())
@@ -52,8 +56,11 @@ public class ProductDocument {
                 .viewCount(product.getViewCount())
                 .createdAt(toMillis(product.getCreatedAt()))
                 .updatedAt(toMillis(product.getUpdatedAt()))
-//                .soldAt(toMillis(product.getSoldAt()))
+                .soldAt(toMillis(product.getSoldAt()))
                 .isDeleted(product.getIsDeleted())
+                .emd(emd)
+                .thumbnailImagePath(thumbnailImagePath)
+                .tradeAreaIds(tradeAreaIds)
                 .build();
     }
 

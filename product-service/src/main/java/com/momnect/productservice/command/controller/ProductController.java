@@ -63,9 +63,10 @@ public class ProductController {
      */
     @PostMapping("/search")
     public ResponseEntity<ApiResponse<Page<ProductSummaryDto>>> searchProducts(
-            @RequestBody ProductSearchRequest request) throws IOException {
+            @RequestBody ProductSearchRequest request,
+            @AuthenticationPrincipal String userId) throws IOException {
 
-        Page<ProductSummaryDto> result = productService.searchProducts(request);
+        Page<ProductSummaryDto> result = productService.searchProducts(request, parseUserId(userId));
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 
