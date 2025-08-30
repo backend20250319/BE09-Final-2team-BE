@@ -12,4 +12,5 @@ import lombok.NoArgsConstructor;
 public class UserBasicInfoResponse {
     private Long id;
     private String nickname;
+    private String profileImageUrl;
 }
