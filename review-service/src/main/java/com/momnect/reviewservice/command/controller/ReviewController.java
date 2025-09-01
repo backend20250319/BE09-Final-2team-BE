@@ -123,11 +123,11 @@ public class ReviewController {
         return ResponseEntity.ok(ApiResponse.success(status));
     }
 
-    @PostMapping
-    public ResponseEntity<ApiResponse<ReviewResponse>> createReview(@RequestBody ReviewRequest reviewRequest) {
-        ReviewResponse newReview = reviewService.createReview(reviewRequest);
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(newReview));
-    }
+//    @PostMapping
+//    public ResponseEntity<ApiResponse<ReviewResponse>> createReview(@RequestBody ReviewRequest reviewRequest) {
+//        ReviewResponse newReview = reviewService.createReview(reviewRequest);
+//        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(newReview));
+//    }
 
     @GetMapping("/{reviewId}")
     public ResponseEntity<ApiResponse<ReviewResponse>> getReviewById(@PathVariable Long reviewId) {
@@ -161,6 +161,32 @@ public class ReviewController {
         } catch (NoSuchElementException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(ApiResponse.failure("REVIEW_NOT_FOUND", "Review not found with id: " + reviewId));
+        }
+    }
+
+
+    @PostMapping("/products/{productId}")
+    public ResponseEntity<ApiResponse<ReviewResponse>> createReview(
+            @RequestBody ReviewRequest reviewRequest,
+            @PathVariable Long productId, // **productId를 URL 경로에서 받아옴**
+            Principal principal) {
+
+        // Principal 객체가 null이면 로그인되지 않은 상태이므로 UNAUTHORIZED 반환
+        if (principal == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        try {
+            // Principal에서 userId를 추출
+            Long userId = Long.parseLong(principal.getName());
+
+            // ReviewService의 createReview 메서드에 userId와 productId를 전달
+            ReviewResponse newReview = reviewService.createReview(reviewRequest, userId, productId);
+
+            return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(newReview));
+        } catch (NumberFormatException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.failure("INVALID_USER_ID", "Invalid user ID format."));
         }
     }
 }

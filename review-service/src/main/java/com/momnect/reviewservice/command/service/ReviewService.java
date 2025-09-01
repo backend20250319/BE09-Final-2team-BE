@@ -207,8 +207,9 @@ public class ReviewService {
         return reviewAiService.getAllStoredSummaries();
     }
 
+    // ReviewRequest 외에 userId와 productId를 파라미터로 추가합니다.
     @Transactional
-    public ReviewResponse createReview(ReviewRequest request) {
+    public ReviewResponse createReview(ReviewRequest request, Long userId, Long productId) {
         Map<String, String> analysisResult = reviewAiService.getReviewAnalysis(
                 request.getContent(),
                 request.getRating(),
@@ -224,8 +225,8 @@ public class ReviewService {
                 .rating(request.getRating())
                 .content(request.getContent())
                 .summary(summary)
-                .productId(1L)
-                .userId(1L)
+                .productId(productId) // **파라미터로 받은 productId 사용**
+                .userId(userId)     // **파라미터로 받은 userId 사용**
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
@@ -239,8 +240,7 @@ public class ReviewService {
                     .sentiment(sentiment)
                     .build();
             reviewSentimentRepository.save(reviewSentiment);
-            
-            // 리뷰 생성 후 해당 감정의 요약글 업데이트
+
             updateSentimentSummaryAfterReviewChange(sentiment);
         }
 
