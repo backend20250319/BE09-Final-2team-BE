@@ -46,8 +46,8 @@ public class TradeController {
      * 내 구매 상품 조회
      */
     @GetMapping("/me/purchases")
-    public ResponseEntity<ApiResponse<List<ProductSummaryDto>>> getMyPurchases(@AuthenticationPrincipal Long userId) {
-        List<ProductSummaryDto> purchases = tradeService.getMyPurchases(userId);
+    public ResponseEntity<ApiResponse<List<ProductSummaryDto>>> getMyPurchases(@AuthenticationPrincipal String userId) {
+        List<ProductSummaryDto> purchases = tradeService.getMyPurchases(Long.valueOf(userId));
         return ResponseEntity.ok(ApiResponse.success(purchases));
     }
 

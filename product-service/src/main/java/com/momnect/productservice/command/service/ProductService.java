@@ -484,7 +484,7 @@ public class ProductService {
     }
 
     // 상품 요약 정보 리스트로 변환
-    private List<ProductSummaryDto> toProductSummaryDtos(
+    public List<ProductSummaryDto> toProductSummaryDtos(
             List<Product> products,
             @Nullable Long loginUserId
     ) {
