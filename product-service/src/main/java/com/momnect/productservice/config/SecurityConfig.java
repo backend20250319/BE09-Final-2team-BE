@@ -39,7 +39,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth ->
                         auth
                                 .requestMatchers(HttpMethod.GET,
-                                        "/products/*",  // 상품 상세 조회 추가
+                                        "/products/**",            // 상품 상세/요약/검색/섹션 조회
                                         "/trades/users/*/summary", // 상품 거래 횟수
                                         "/trades/users/*/sales",   // 유저 판매 상품 조회
 
