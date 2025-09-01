@@ -5,6 +5,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 
 @Component
@@ -19,25 +21,42 @@ import java.util.List;
 public class HeaderAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        return "OPTIONS".equalsIgnoreCase(request.getMethod());
+    }
+
+    @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
 
-        /*  ✅ 개발용 테스트를 위해 헤더 인증 비활성화
-        String userId = request.getHeader("X-User-Id");
-        String role = request.getHeader("X-User-Role");
+        if (SecurityContextHolder.getContext().getAuthentication() == null) {
+            final String userId = request.getHeader("X-User-Id");
+            final String rolesHeader = request.getHeader("X-User-Role");
 
-        log.info("[HeaderAuthenticationFilter] userId : {}", userId);
-        log.info("[HeaderAuthenticationFilter] role : {}", role);
+            if (log.isDebugEnabled()) {
+                log.debug("[HeaderAuthenticationFilter] userId={}, roles={}", userId, rolesHeader);
+            }
 
-        if (userId != null && role != null) {
-            PreAuthenticatedAuthenticationToken authentication =
-                new PreAuthenticatedAuthenticationToken(userId, null,
-                    List.of(new SimpleGrantedAuthority(role)));
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+            if (userId != null && !userId.isBlank()) {
+                List<SimpleGrantedAuthority> authorities = parseAuthorities(rolesHeader);
+
+                PreAuthenticatedAuthenticationToken authentication =
+                        new PreAuthenticatedAuthenticationToken(userId, null, authorities);
+                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+            }
         }
-        */
 
-        // 그냥 무조건 통과
         filterChain.doFilter(request, response);
+    }
+
+    private List<SimpleGrantedAuthority> parseAuthorities(String rolesHeader) {
+        if (rolesHeader == null || rolesHeader.isBlank()) return List.of();
+        return Arrays.stream(rolesHeader.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isBlank())
+                .map(r -> r.startsWith("ROLE_") ? r : "ROLE_" + r)
+                .map(SimpleGrantedAuthority::new)
+                .toList();
     }
 }
