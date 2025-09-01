@@ -15,8 +15,9 @@ public class ChatService {
 
     private final ChatServiceClient chatServiceClient;
 
-    public ChatMessageResponse saveMessage(ChatMessageRequest request) {
+    public ChatMessageResponse saveMessage(ChatMessageRequest request, String authorizationToken) {
         log.info("Saving message to chat service: {}", request);
+        log.info("Authorization token: {}", authorizationToken != null ? authorizationToken.substring(0, Math.min(20, authorizationToken.length())) + "..." : "null");
         
         try {
             // ChatMessageSendRequest 형태로 변환
@@ -25,8 +26,11 @@ public class ChatService {
             sendRequest.setSenderName(request.getSenderName());
             sendRequest.setMessage(request.getContent());
             
-            // Feign 클라이언트를 사용하여 Chat Service API 호출
-            ApiResponse<ChatMessageResponse> response = chatServiceClient.saveMessage(request.getRoomId(), sendRequest);
+            log.info("Feign 호출 준비: roomId={}, request={}, token={}", 
+                    request.getRoomId(), sendRequest, authorizationToken != null ? "있음" : "없음");
+            
+            // Feign 클라이언트를 사용하여 Chat Service API 호출 (인증 토큰과 함께)
+            ApiResponse<ChatMessageResponse> response = chatServiceClient.saveMessage(request.getRoomId(), authorizationToken, sendRequest);
             
             if (response != null && response.isSuccess()) {
                 return response.getData();

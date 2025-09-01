@@ -23,20 +23,30 @@ public class ChatController {
 
     @MessageMapping("/chat.sendMessage")
     public void sendMessage(@Payload ChatMessageRequest chatMessage, SimpMessageHeaderAccessor headerAccessor) {
-        log.info("Received message: {}", chatMessage);
+        log.info("📨 메시지 수신: {}", chatMessage);
         
         // 세션에서 사용자 정보 확인
         String sessionUserId = (String) headerAccessor.getSessionAttributes().get("userId");
         String sessionUsername = (String) headerAccessor.getSessionAttributes().get("username");
+        String authorizationToken = (String) headerAccessor.getSessionAttributes().get("Authorization");
         
-        log.info("세션 사용자 정보 - userId: {}, username: {}", sessionUserId, sessionUsername);
+        log.info("세션 사용자 정보 - userId: {}, username: {}, hasToken: {}", 
+                sessionUserId, sessionUsername, authorizationToken != null);
+        if (authorizationToken != null) {
+            log.info("세션에서 토큰 확인: {}", authorizationToken.substring(0, Math.min(20, authorizationToken.length())) + "...");
+        }
         
         try {
-            // Chat Service API 호출하여 메시지 저장
-            ChatMessageResponse savedMessage = chatService.saveMessage(chatMessage);
+            // Chat Service API 호출하여 메시지 저장 (인증 토큰과 함께)
+            log.info("💾 DB 저장 시작: roomId={}, senderId={}", chatMessage.getRoomId(), chatMessage.getSenderId());
+            ChatMessageResponse savedMessage = chatService.saveMessage(chatMessage, authorizationToken);
+            log.info("✅ DB 저장 완료: messageId={}", savedMessage.getId());
             
             // 채팅방의 모든 구독자에게 메시지 브로드캐스트
-            messagingTemplate.convertAndSend("/topic/room." + chatMessage.getRoomId(), savedMessage);
+            String topic = "/topic/room." + chatMessage.getRoomId();
+            log.info("📡 브로드캐스트 시작: topic={}", topic);
+            messagingTemplate.convertAndSend(topic, savedMessage);
+            log.info("✅ 브로드캐스트 완료: topic={}", topic);
             
             // 발신자에게 개인 알림 (선택사항)
             messagingTemplate.convertAndSendToUser(
@@ -46,7 +56,7 @@ public class ChatController {
             );
             
         } catch (Exception e) {
-            log.error("Error processing message", e);
+            log.error("❌ 메시지 처리 중 오류 발생", e);
             
             // 에러 알림을 발신자에게 전송
             messagingTemplate.convertAndSendToUser(
@@ -59,18 +69,28 @@ public class ChatController {
 
     @MessageMapping("/chat.addUser")
     public void addUser(@Payload ChatMessageRequest chatMessage, SimpMessageHeaderAccessor headerAccessor) {
-        log.info("User added to chat: {}", chatMessage.getSenderId());
+        log.info("=== 방 입장 요청 수신 ===");
+        log.info("요청 메시지: {}", chatMessage);
+        log.info("세션 ID: {}", headerAccessor.getSessionId());
+        log.info("세션 속성 전체: {}", headerAccessor.getSessionAttributes());
         
         // 세션에서 사용자 정보 확인
         String sessionUserId = (String) headerAccessor.getSessionAttributes().get("userId");
         String sessionUsername = (String) headerAccessor.getSessionAttributes().get("username");
+        String authorizationToken = (String) headerAccessor.getSessionAttributes().get("Authorization");
         
-        log.info("방 입장 - 세션 사용자 정보: userId={}, username={}", sessionUserId, sessionUsername);
+        log.info("방 입장 - 세션 사용자 정보: userId={}, username={}, hasToken={}", 
+                sessionUserId, sessionUsername, authorizationToken != null);
+        
+        if (sessionUserId == null || sessionUsername == null) {
+            log.warn("⚠️ 세션에 사용자 정보가 없습니다. WebSocket 연결을 다시 확인해주세요.");
+            log.warn("세션 속성 키들: {}", headerAccessor.getSessionAttributes() != null ? 
+                    headerAccessor.getSessionAttributes().keySet() : "null");
+        }
         
         // 세션에 채팅방 정보 저장
         headerAccessor.getSessionAttributes().put("roomId", chatMessage.getRoomId());
-        
-        // 입장 메시지는 제거하고 세션 정보만 저장
+        log.info("✅ 채팅방 정보 세션에 저장: roomId={}", chatMessage.getRoomId());
     }
 
     @MessageMapping("/chat.markAsRead")
