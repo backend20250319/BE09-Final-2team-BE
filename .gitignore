@@ -8,6 +8,9 @@ application-dev.yml
 # ide config file
 .dbeaver-data-sources*.xml
 
+### gradle ###
+.gradle/
+
 ### Eclipse ###
 .metadata
 bin/

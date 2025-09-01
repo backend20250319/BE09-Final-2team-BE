@@ -17,6 +17,7 @@ import com.momnect.chatservice.command.repository.ChatParticipantRepository;
 import com.momnect.chatservice.command.repository.ChatRoomRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -55,10 +56,16 @@ public class ChatRoomService {
             throw new IllegalArgumentException("자신의 상품에 대해 채팅방을 생성할 수 없습니다.");
         }
         
+        // ✅ 기존 채팅방 확인 (동시성 문제 방지를 위해 먼저 확인)
         ChatRoom existed = chatRoomRepository
                 .findFirstByBuyerIdAndSellerIdAndProductId(buyerId, sellerId, req.getProductId());
-        if (existed != null) return toResponse(existed, false);
+        if (existed != null) {
+            log.info("기존 채팅방 발견: roomId={}, buyerId={}, sellerId={}, productId={}", 
+                    existed.getId(), buyerId, sellerId, req.getProductId());
+            return toResponse(existed, false);
+        }
 
+        // ✅ 채팅방 생성 시도
         ChatRoom room = ChatRoom.builder()
                 .productId(req.getProductId())
                 .buyerId(buyerId)
@@ -66,22 +73,49 @@ public class ChatRoomService {
                 .createdAt(LocalDateTime.now())
                 .build();
 
-        ChatRoom saved = chatRoomRepository.save(room);
+        ChatRoom saved;
+        try {
+            saved = chatRoomRepository.save(room);
+            log.info("새 채팅방 생성 성공: roomId={}, buyerId={}, sellerId={}, productId={}", 
+                    saved.getId(), buyerId, sellerId, req.getProductId());
+        } catch (DataIntegrityViolationException e) {
+            // ✅ 동시성 상황에서 중복 생성 시도 시 기존 방 반환
+            log.warn("채팅방 중복 생성 시도 감지: buyerId={}, sellerId={}, productId={}", 
+                    buyerId, sellerId, req.getProductId());
+            
+            // 다시 한번 기존 방 확인
+            ChatRoom existingRoom = chatRoomRepository
+                    .findFirstByBuyerIdAndSellerIdAndProductId(buyerId, sellerId, req.getProductId());
+            if (existingRoom != null) {
+                log.info("중복 생성 후 기존 채팅방 반환: roomId={}", existingRoom.getId());
+                return toResponse(existingRoom, false);
+            } else {
+                // 예상치 못한 상황
+                log.error("DataIntegrityViolationException 발생했지만 기존 방을 찾을 수 없음", e);
+                throw e;
+            }
+        }
 
-        // 참여자 2명 생성
-        participantRepository.save(ChatParticipant.builder()
-                .chatRoomId(saved.getId())
-                .userId(buyerId)
-                .unreadCount(0)
-                .lastReadAt(LocalDateTime.now())
-                .build());
+        // ✅ 참여자 2명 생성
+        try {
+            participantRepository.save(ChatParticipant.builder()
+                    .chatRoomId(saved.getId())
+                    .userId(buyerId)
+                    .unreadCount(0)
+                    .lastReadAt(LocalDateTime.now())
+                    .build());
 
-        participantRepository.save(ChatParticipant.builder()
-                .chatRoomId(saved.getId())
-                .userId(sellerId)
-                .unreadCount(0)
-                .lastReadAt(LocalDateTime.now())
-                .build());
+            participantRepository.save(ChatParticipant.builder()
+                    .chatRoomId(saved.getId())
+                    .userId(sellerId)
+                    .unreadCount(0)
+                    .lastReadAt(LocalDateTime.now())
+                    .build());
+        } catch (DataIntegrityViolationException e) {
+            // ✅ 참여자 중복 생성 시도 시 무시 (이미 존재하는 경우)
+            log.warn("참여자 중복 생성 시도 감지: roomId={}, buyerId={}, sellerId={}", 
+                    saved.getId(), buyerId, sellerId);
+        }
 
         return toResponse(saved, true);
         } catch (Exception e) {
@@ -100,12 +134,110 @@ public class ChatRoomService {
                     Long roomId = p.getChatRoomId();
                     ChatMessage last = messageRepository.findTopByRoomIdOrderBySentAtDesc(roomId.toString());
 
-                    return ChatRoomSummaryResponse.builder()
-                            .roomId(roomId)
-                            .lastMessage(last != null ? last.getContent() : null)
-                            .lastSentAt(last != null ? last.getSentAt() : null)
-                            .unreadCount(p.getUnreadCount())
-                            .build();
+                    // ChatRoom 정보 가져오기
+                    ChatRoom room = chatRoomRepository.findById(roomId).orElse(null);
+                    if (room == null) {
+                        return ChatRoomSummaryResponse.builder()
+                                .roomId(roomId)
+                                .lastMessage(last != null ? last.getContent() : null)
+                                .lastSentAt(last != null ? last.getSentAt() : null)
+                                .unreadCount(p.getUnreadCount())
+                                .build();
+                    }
+
+                                         try {
+                         // Product Service에서 상품 정보 가져오기
+                         ApiResponse<List<ProductSummaryResponse>> productResponse = productClient.getProductSummaries(List.of(room.getProductId()), userId);
+
+                         // 상대방 사용자 ID 찾기
+                         Long otherUserId = room.getBuyerId().equals(userId) ? room.getSellerId() : room.getBuyerId();
+
+                         // User Service에서 상대방 정보 가져오기
+                         ApiResponse<UserBasicInfoResponse> userResponse = userServiceClient.getUserBasicInfo(otherUserId);
+
+                         if (productResponse.isSuccess() && productResponse.getData() != null && !productResponse.getData().isEmpty()) {
+                             ProductSummaryResponse productInfo = productResponse.getData().get(0);
+
+                             ChatRoomSummaryResponse.ChatRoomSummaryResponseBuilder builder = ChatRoomSummaryResponse.builder()
+                                     .roomId(roomId)
+                                     .productId(room.getProductId())
+                                     .productName(productInfo.getName())
+                                     .productPrice(productInfo.getPrice())
+                                     .productThumbnailUrl(productInfo.getThumbnailUrl())
+                                     .tradeStatus(productInfo.getTradeStatus())
+                                     .buyerId(room.getBuyerId())
+                                     .sellerId(room.getSellerId())
+                                     .lastMessage(last != null ? last.getContent() : null)
+                                     .lastSentAt(last != null ? last.getSentAt() : null)
+                                     .unreadCount(p.getUnreadCount())
+                                     .otherUserId(otherUserId);
+
+                             // 상대방 사용자 정보 추가
+                             if (userResponse.isSuccess() && userResponse.getData() != null) {
+                                 UserBasicInfoResponse userInfo = userResponse.getData();
+                                 builder.otherUserNickname(userInfo.getNickname())
+                                        .otherUserProfileImageUrl(userInfo.getProfileImageUrl());
+                             } else {
+                                 builder.otherUserNickname("상대방")
+                                        .otherUserProfileImageUrl(null);
+                             }
+
+                             return builder.build();
+                         }
+                     } catch (Exception e) {
+                         log.error("상품/사용자 정보 조회 실패 - roomId: {}, productId: {}", roomId, room.getProductId(), e);
+                     }
+
+                                         // 상품 정보 조회 실패 시에도 상대방 사용자 정보는 가져오기
+                     try {
+                         Long otherUserId = room.getBuyerId().equals(userId) ? room.getSellerId() : room.getBuyerId();
+                         ApiResponse<UserBasicInfoResponse> userResponse = userServiceClient.getUserBasicInfo(otherUserId);
+
+                         ChatRoomSummaryResponse.ChatRoomSummaryResponseBuilder builder = ChatRoomSummaryResponse.builder()
+                                 .roomId(roomId)
+                                 .productId(room.getProductId())
+                                 .productName("상품명 없음")
+                                 .productPrice(0)
+                                 .productThumbnailUrl(null)
+                                 .tradeStatus("UNKNOWN")
+                                 .buyerId(room.getBuyerId())
+                                 .sellerId(room.getSellerId())
+                                 .lastMessage(last != null ? last.getContent() : null)
+                                 .lastSentAt(last != null ? last.getSentAt() : null)
+                                 .unreadCount(p.getUnreadCount())
+                                 .otherUserId(otherUserId);
+
+                         if (userResponse.isSuccess() && userResponse.getData() != null) {
+                             UserBasicInfoResponse userInfo = userResponse.getData();
+                             builder.otherUserNickname(userInfo.getNickname())
+                                    .otherUserProfileImageUrl(userInfo.getProfileImageUrl());
+                         } else {
+                             builder.otherUserNickname("상대방")
+                                    .otherUserProfileImageUrl(null);
+                         }
+
+                         return builder.build();
+                     } catch (Exception e) {
+                         log.error("사용자 정보 조회 실패 - roomId: {}, otherUserId: {}", roomId, room.getBuyerId().equals(userId) ? room.getSellerId() : room.getBuyerId(), e);
+
+                         // 모든 정보 조회 실패 시 기본값으로 반환
+                         return ChatRoomSummaryResponse.builder()
+                                 .roomId(roomId)
+                                 .productId(room.getProductId())
+                                 .productName("상품명 없음")
+                                 .productPrice(0)
+                                 .productThumbnailUrl(null)
+                                 .tradeStatus("UNKNOWN")
+                                 .buyerId(room.getBuyerId())
+                                 .sellerId(room.getSellerId())
+                                 .lastMessage(last != null ? last.getContent() : null)
+                                 .lastSentAt(last != null ? last.getSentAt() : null)
+                                 .unreadCount(p.getUnreadCount())
+                                 .otherUserId(room.getBuyerId().equals(userId) ? room.getSellerId() : room.getBuyerId())
+                                 .otherUserNickname("상대방")
+                                 .otherUserProfileImageUrl(null)
+                                 .build();
+                     }
                 })
                 .sorted(Comparator.comparing(
                         ChatRoomSummaryResponse::getLastSentAt,
