@@ -9,14 +9,12 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.safety.Safelist;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.ByteArrayResource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
-import java.util.Base64;
 
 @Component
 @RequiredArgsConstructor
@@ -31,16 +29,15 @@ public class ContentUploadProcessor {
     @Value("${post.upload.max-size-bytes}")
     private long maxSizeBytes;
 
-    /** HTML을 sanitize → dataURL 이미지 추출해 파일서버 업로드 → 본문에 public URL로 치환 */
     public ProcessResult processHtml(String rawHtml) {
-        // 0) sanitize (스크립트 제거 등, 필요한 태그만 허용)
+        // 0) sanitize
         String clean = Jsoup.clean(rawHtml, Safelist.relaxed()
                 .addAttributes(":all", "style")
                 .addTags("img", "figure", "figcaption", "video", "source"));
 
         Document doc = Jsoup.parse(clean);
 
-        // 1) 업로드 대상 수집: img[src] 중 data:image/* 또는 /temp/*
+        // 1) 업로드 대상 수집
         List<Element> targets = new ArrayList<>();
         for (Element img : doc.select("img[src]")) {
             String src = img.attr("src");
@@ -61,17 +58,22 @@ public class ContentUploadProcessor {
                 files.add(mf);
                 oldSrcs.add(src);
             } else if (isTemp(src)) {
-                // TODO: /temp/** 스토리지 연동 후 구현
                 throw new IllegalStateException("Temp 경로 업로드는 스토리지 연동 후 구현 필요: " + src);
             }
         }
 
-        // 3) 파일서버 업로드
-        List<ImageFileDTO> uploaded = fileServiceClient.upload(files);
+        // 3) 파일서버 업로드 (체크예외 아님 → Exception으로 캐치)
+        List<ImageFileDTO> uploaded = Collections.emptyList();
+        try {
+            uploaded = fileServiceClient.upload(files);
+        } catch (Exception e) {
+            // 업로드 실패시 본문은 그대로 두고, 메타는 빈 리스트로 반환
+            uploaded = Collections.emptyList();
+        }
 
         // 4) URL 치환
         Map<String, String> map = new HashMap<>();
-        for (int i = 0; i < uploaded.size(); i++) {
+        for (int i = 0; i < Math.min(uploaded.size(), oldSrcs.size()); i++) {
             map.put(oldSrcs.get(i), resolveUrl(uploaded.get(i)));
         }
         for (Element el : targets) {
@@ -84,7 +86,12 @@ public class ContentUploadProcessor {
         String finalHtml = doc.body().html();
         List<UploadedFileMeta> metas = new ArrayList<>();
         for (ImageFileDTO dto : uploaded) {
-            metas.add(new UploadedFileMeta(resolveUrl(dto), dto.getContentType(), dto.getSize(), dto.getFilename()));
+            metas.add(new UploadedFileMeta(
+                    resolveUrl(dto),
+                    dto.getContentType(),
+                    dto.getSize(),
+                    dto.getFilename()
+            ));
         }
         return new ProcessResult(finalHtml, metas);
     }
@@ -146,13 +153,15 @@ public class ContentUploadProcessor {
             this.contentType = contentType;
             this.bytes = bytes;
         }
+
         @Override public String getName() { return name; }
         @Override public String getOriginalFilename() { return originalFilename; }
         @Override public String getContentType() { return contentType; }
         @Override public boolean isEmpty() { return bytes.length == 0; }
         @Override public long getSize() { return bytes.length; }
         @Override public byte[] getBytes() { return bytes; }
-        @Override public InputStream getInputStream() {return new java.io.ByteArrayInputStream(bytes);}@Override public void transferTo(java.io.File dest) throws IOException {
+        @Override public InputStream getInputStream() { return new java.io.ByteArrayInputStream(bytes); }
+        @Override public void transferTo(java.io.File dest) throws IOException {
             java.nio.file.Files.write(dest.toPath(), bytes);
         }
     }
