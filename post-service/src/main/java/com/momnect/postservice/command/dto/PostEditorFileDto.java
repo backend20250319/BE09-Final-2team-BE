@@ -1,10 +1,13 @@
 package com.momnect.postservice.command.dto;
 
 import lombok.AllArgsConstructor;
-import lombok.Getter;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-@Getter
+@Data
+@NoArgsConstructor
 @AllArgsConstructor
 public class PostEditorFileDto {
-    private Long id;  // 첨부파일 PK만 반환
+    private Long fileId;
+    private String url;
 }
