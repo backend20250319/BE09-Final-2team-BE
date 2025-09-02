@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
@@ -34,12 +35,12 @@ public class ReviewController {
     // 신규 추가: 본인이 작성한 리뷰 총 개수 조회
     // Principal 객체를 사용하여 현재 로그인한 사용자의 정보를 자동으로 가져옵니다.
     @GetMapping("/my/count")
-    public ResponseEntity<ReviewCountResponse> getMyReviewCount(Principal principal) {
-        if (principal == null) {
+    public ResponseEntity<ReviewCountResponse> getMyReviewCount(@AuthenticationPrincipal String username) {
+        if (username == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
         try {
-            Long userId = Long.parseLong(principal.getName());
+            Long userId = Long.parseLong(username);
             long count = reviewService.getReviewCountByUserId(userId);
             ReviewCountResponse response = new ReviewCountResponse(Math.toIntExact(count));
             return ResponseEntity.ok(response);

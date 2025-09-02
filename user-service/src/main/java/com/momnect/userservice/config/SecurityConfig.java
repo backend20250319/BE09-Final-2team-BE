@@ -43,7 +43,7 @@ public class SecurityConfig {
                                         .authenticationEntryPoint(restAuthenticationEntryPoint)
                 )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.POST, "/auth/signup", "/auth/login", "/auth/verify-account").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/auth/signup", "/auth/login", "/auth/verify-account", "/auth/logout").permitAll()
                         .requestMatchers(HttpMethod.PUT, "/auth/reset-password").permitAll()
                         .requestMatchers(HttpMethod.POST, "/auth/validate", "/auth/validate-cookie").permitAll()
                         .requestMatchers(HttpMethod.GET, "/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**").permitAll()

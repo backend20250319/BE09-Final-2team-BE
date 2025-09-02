@@ -31,7 +31,7 @@ import com.momnect.reviewservice.command.dto.UserRankingResponse;
 
 @Slf4j
 @Service
-public class ReviewService {
+public class ReviewService<ProductDTO> {
 
     @Autowired
     private ReviewRepository reviewRepository;
@@ -253,7 +253,7 @@ public class ReviewService {
         // 유저 정보 검증 및 가져오기 (인증 오류 시 무시하고 진행)
         try {
             ApiResponse<UserDTO> userInfo = userClient.getUserInfo(userId);
-            log.info("[createReview] ===> userInfo : {}", userInfo);
+            log.info("[createReview] ===> userInfo : {}", userInfo.getData());
         } catch (RestClientException e) {
             log.warn("[createReview] 유저 정보 조회 실패 (userId: {}): {}", userId, e.getMessage());
             // 인증 오류가 발생해도 리뷰 생성은 계속 진행
@@ -261,7 +261,7 @@ public class ReviewService {
 
         // 상품 정보 검증 및 가져오기 (인증 오류 시 무시하고 진행)
         try {
-            ReviewDTO productInfo = productClient.getProductInfo(productId);
+            ProductDTO productInfo = (ProductDTO) productClient.getProductInfo(productId);
             log.info("[createReview] ===> productInfo : {}", productInfo);
         } catch (RestClientException e) {
             log.warn("[createReview] 상품 정보 조회 실패 (productId: {}): {}", productId, e.getMessage());
