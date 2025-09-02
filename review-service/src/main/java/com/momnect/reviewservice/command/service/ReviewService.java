@@ -1,9 +1,13 @@
 package com.momnect.reviewservice.command.service;
 
+import com.momnect.reviewservice.command.client.UserClient;
+import com.momnect.reviewservice.command.client.ProductClient;
+import com.momnect.reviewservice.command.client.dto.UserDTO;
 import com.momnect.reviewservice.command.dto.ReviewRequest;
 import com.momnect.reviewservice.command.dto.ReviewResponse;
 import com.momnect.reviewservice.command.dto.ReviewStatsResponse;
 import com.momnect.reviewservice.command.dto.ReviewSummaryResponse;
+import com.momnect.reviewservice.command.dto.ReviewDTO;
 import com.momnect.reviewservice.command.entity.Review;
 import com.momnect.reviewservice.command.entity.ReviewOption;
 import com.momnect.reviewservice.command.entity.ReviewOptionResult;
@@ -12,20 +16,20 @@ import com.momnect.reviewservice.command.repository.ReviewRepository;
 import com.momnect.reviewservice.command.repository.ReviewOptionRepository;
 import com.momnect.reviewservice.command.repository.ReviewOptionResultRepository;
 import com.momnect.reviewservice.command.repository.ReviewSentimentRepository;
+import com.momnect.reviewservice.common.ApiResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestClientException;
 
 import jakarta.annotation.PostConstruct;
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
+import java.util.*;
 import java.util.stream.Collectors;
 import com.momnect.reviewservice.command.dto.UserRankingResponse;
-import java.util.ArrayList;
 
+@Slf4j
 @Service
 public class ReviewService {
 
@@ -43,6 +47,12 @@ public class ReviewService {
 
     @Autowired
     private ReviewSentimentRepository reviewSentimentRepository;
+
+    @Autowired
+    private UserClient userClient;
+
+    @Autowired
+    private ProductClient productClient;
 
     /**
      * 서비스 시작 시 자동으로 모든 감정별 요약글을 생성합니다.
@@ -166,38 +176,59 @@ public class ReviewService {
      * 총 리뷰 개수와 평균 별점을 기준으로 정렬합니다.
      */
     public List<UserRankingResponse> getTopUsersForHallOfFame() {
-        // 사용자별 리뷰 통계를 조회하는 네이티브 쿼리 결과를 가져옵니다
-        List<Object[]> userStats = reviewRepository.findUserStatsForRanking();
-        
-        List<UserRankingResponse> rankings = new ArrayList<>();
-        int rank = 1;
-        
-        for (Object[] stat : userStats) {
-            if (rank > 3) break; // 상위 3명만
-            
-            Long userId = (Long) stat[0];
-            String nickname = (String) stat[1];
-            Long totalCount = (Long) stat[2];
-            Double avgRating = (Double) stat[3];
-            
-            // 평균 별점이 null인 경우 0.0으로 처리
-            if (avgRating == null) {
-                avgRating = 0.0;
-            }
-            
-            UserRankingResponse ranking = new UserRankingResponse(
-                userId,
-                nickname != null ? nickname : "사용자" + userId,
-                totalCount,
-                avgRating,
-                rank
-            );
-            
-            rankings.add(ranking);
-            rank++;
+        // 1. 모든 리뷰를 가져옵니다.
+        List<Review> allReviews = reviewRepository.findAll();
+
+        // 2. userId별로 리뷰를 그룹화하고, 각 사용자의 통계를 계산합니다.
+        Map<Long, List<Review>> reviewsByUser = allReviews.stream()
+                .collect(Collectors.groupingBy(Review::getUserId));
+
+        List<UserRankingResponse> userStatsList = new ArrayList<>();
+        reviewsByUser.forEach((userId, reviews) -> {
+            // 별점 평균 계산
+            double averageRating = reviews.stream()
+                    .mapToDouble(Review::getRating)
+                    .average()
+                    .orElse(0.0);
+
+            userStatsList.add(new UserRankingResponse(userId, null, (long) reviews.size(), averageRating, null));
+        });
+
+        // 3. 별점 평균(내림차순)과 긍정 리뷰 개수(내림차순)를 기준으로 정렬합니다.
+        userStatsList.sort(Comparator.comparing(UserRankingResponse::getAverageRating).reversed()
+                .thenComparing(ranking -> {
+                    // 긍정 리뷰 개수 계산 (별점 4.0 이상)
+                    long positiveCount = reviewsByUser.get(ranking.getUserId()).stream()
+                            .filter(r -> r.getRating() >= 4.0)
+                            .count();
+                    return positiveCount;
+                }, Comparator.reverseOrder()));
+
+        // 4. 상위 3명을 선택하고 순위를 매깁니다.
+        List<UserRankingResponse> top3 = userStatsList.stream()
+                .limit(3)
+                .collect(Collectors.toList());
+
+        for (int i = 0; i < top3.size(); i++) {
+            top3.get(i).setRank(i + 1);
         }
-        
-        return rankings;
+
+        // 5. UserClient를 통해 사용자 닉네임 정보를 가져옵니다.
+        for (UserRankingResponse ranking : top3) {
+            try {
+                ApiResponse<UserDTO> userResponse = userClient.getUserById(ranking.getUserId());
+                if (userResponse.isSuccess() && userResponse.getData() != null) {
+                    ranking.setNickname(userResponse.getData().getNickname());
+                } else {
+                    ranking.setNickname("알 수 없음"); // 닉네임 가져오기 실패 시 기본값 설정
+                }
+            } catch (RestClientException e) {
+                log.error("Failed to fetch user nickname for userId: {}", ranking.getUserId(), e);
+                ranking.setNickname("알 수 없음");
+            }
+        }
+
+        return top3;
     }
 
     /**
@@ -207,9 +238,35 @@ public class ReviewService {
         return reviewAiService.getAllStoredSummaries();
     }
 
+    // 기존 메서드 - ReviewRequest에서 userId와 productId를 가져와서 리뷰 생성
+    @Transactional
+    public ReviewResponse createReview(ReviewRequest request) {
+        // userId와 productId가 null이면 기본값 사용
+        Long userId = request.getUserId() != null ? request.getUserId() : 1L;
+        Long productId = request.getProductId() != null ? request.getProductId() : 1L;
+        return createReview(request, userId, productId);
+    }
+
     // ReviewRequest 외에 userId와 productId를 파라미터로 추가합니다.
     @Transactional
     public ReviewResponse createReview(ReviewRequest request, Long userId, Long productId) {
+        // 유저 정보 검증 및 가져오기 (인증 오류 시 무시하고 진행)
+        try {
+            ApiResponse<UserDTO> userInfo = userClient.getUserInfo(userId);
+            log.info("[createReview] ===> userInfo : {}", userInfo);
+        } catch (RestClientException e) {
+            log.warn("[createReview] 유저 정보 조회 실패 (userId: {}): {}", userId, e.getMessage());
+            // 인증 오류가 발생해도 리뷰 생성은 계속 진행
+        }
+
+        // 상품 정보 검증 및 가져오기 (인증 오류 시 무시하고 진행)
+        try {
+            ReviewDTO productInfo = productClient.getProductInfo(productId);
+            log.info("[createReview] ===> productInfo : {}", productInfo);
+        } catch (RestClientException e) {
+            log.warn("[createReview] 상품 정보 조회 실패 (productId: {}): {}", productId, e.getMessage());
+            // 인증 오류가 발생해도 리뷰 생성은 계속 진행
+        }
         Map<String, String> analysisResult = reviewAiService.getReviewAnalysis(
                 request.getContent(),
                 request.getRating(),
@@ -225,8 +282,8 @@ public class ReviewService {
                 .rating(request.getRating())
                 .content(request.getContent())
                 .summary(summary)
-                .productId(productId) // **파라미터로 받은 productId 사용**
-                .userId(userId)     // **파라미터로 받은 userId 사용**
+                .productId(productId)
+                .userId(userId)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
@@ -370,7 +427,13 @@ public class ReviewService {
             else if ("PROMISE".equals(optionName)) promise = result.getFlag();
             else if ("SATISFACTION".equals(optionName)) satisfaction = result.getFlag();
         }
-        return new ReviewRequest(review.getRating(), review.getContent(), kind, promise, satisfaction);
+        ReviewRequest request = new ReviewRequest();
+        request.setRating(review.getRating());
+        request.setContent(review.getContent());
+        request.setKind(kind);
+        request.setPromise(promise);
+        request.setSatisfaction(satisfaction);
+        return request;
     }
 
     // 리뷰 옵션 업데이트

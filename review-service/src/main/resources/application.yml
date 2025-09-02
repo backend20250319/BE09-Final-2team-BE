@@ -17,6 +17,8 @@ spring:
     active: dev,openai
   application:
     name: review-service
+  main:
+    allow-bean-definition-overriding: true
   jpa:
     hibernate:
       ddl-auto: create

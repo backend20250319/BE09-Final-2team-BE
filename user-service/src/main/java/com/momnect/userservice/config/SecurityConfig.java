@@ -42,18 +42,6 @@ public class SecurityConfig {
                                 exception.accessDeniedHandler(restAccessDeniedHandler)
                                         .authenticationEntryPoint(restAuthenticationEntryPoint)
                 )
-<<<<<<< HEAD
-                .authorizeHttpRequests(auth ->
-                        auth.requestMatchers(HttpMethod.POST, "/auth/signup", "/auth/login").permitAll()
-                                .requestMatchers(HttpMethod.GET, "/users/*").permitAll()
-                                .requestMatchers(HttpMethod.POST, "/auth/verify-account").permitAll()
-                                .requestMatchers(HttpMethod.PUT, "/auth/reset-password").permitAll()
-                                .requestMatchers(HttpMethod.GET, "/swagger-ui/**", "/v3/api-docs/**",
-                                        "/swagger-resources/**")
-                                .permitAll()
-                                .anyRequest()
-                                .authenticated()
-=======
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, "/auth/signup", "/auth/login", "/auth/verify-account").permitAll()
                         .requestMatchers(HttpMethod.PUT, "/auth/reset-password").permitAll()
@@ -68,7 +56,6 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/users/{userId}/basic").permitAll()
                         .requestMatchers(HttpMethod.PUT, "/users/me/trade-locations").authenticated()
                         .anyRequest().authenticated()
->>>>>>> 984fcc69a9bb390937e219a0dbb4da3b12fc58de
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
         ;

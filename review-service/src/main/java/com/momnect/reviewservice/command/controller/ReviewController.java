@@ -123,10 +123,46 @@ public class ReviewController {
         return ResponseEntity.ok(ApiResponse.success(status));
     }
 
-//    @PostMapping
-//    public ResponseEntity<ApiResponse<ReviewResponse>> createReview(@RequestBody ReviewRequest reviewRequest) {
-//        ReviewResponse newReview = reviewService.createReview(reviewRequest);
-//        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(newReview));
+    @PostMapping
+    public ResponseEntity<ApiResponse<ReviewResponse>> createReview(@RequestBody ReviewRequest reviewRequest) {
+        ReviewResponse newReview = reviewService.createReview(reviewRequest);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(newReview));
+    }
+
+    // URL 경로에서 userId와 productId를 받는 새로운 엔드포인트
+    @PostMapping("/users/{userId}/products/{productId}")
+    public ResponseEntity<ApiResponse<ReviewResponse>> createReviewWithPath(
+            @PathVariable Long userId,
+            @PathVariable Long productId,
+            @RequestBody ReviewRequest reviewRequest) {
+        try {
+            ReviewResponse newReview = reviewService.createReview(reviewRequest, userId, productId);
+            return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(newReview));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.failure("INVALID_REQUEST", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.failure("INTERNAL_ERROR", "리뷰 생성 중 오류가 발생했습니다."));
+        }
+    }
+
+    // 사용자 리뷰 등록 전용 엔드포인트 (productId는 기본값 사용)
+//    @PostMapping("/users/{userId}")
+//    public ResponseEntity<ApiResponse<ReviewResponse>> createUserReview(
+//            @PathVariable Long userId,
+//            @RequestBody ReviewRequest reviewRequest) {
+//        try {
+//            // productId는 기본값 1L 사용 (실제 운영에서는 적절한 productId 필요)
+//            ReviewResponse newReview = reviewService.createReview(reviewRequest, userId, 1L);
+//            return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(newReview));
+//        } catch (IllegalArgumentException e) {
+//            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+//                    .body(ApiResponse.failure("INVALID_REQUEST", e.getMessage()));
+//        } catch (Exception e) {
+//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+//                    .body(ApiResponse.failure("INTERNAL_ERROR", "리뷰 생성 중 오류가 발생했습니다."));
+//        }
 //    }
 
     @GetMapping("/{reviewId}")
@@ -165,28 +201,5 @@ public class ReviewController {
     }
 
 
-    @PostMapping("/products/{productId}")
-    public ResponseEntity<ApiResponse<ReviewResponse>> createReview(
-            @RequestBody ReviewRequest reviewRequest,
-            @PathVariable Long productId, // **productId를 URL 경로에서 받아옴**
-            Principal principal) {
 
-        // Principal 객체가 null이면 로그인되지 않은 상태이므로 UNAUTHORIZED 반환
-        if (principal == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-
-        try {
-            // Principal에서 userId를 추출
-            Long userId = Long.parseLong(principal.getName());
-
-            // ReviewService의 createReview 메서드에 userId와 productId를 전달
-            ReviewResponse newReview = reviewService.createReview(reviewRequest, userId, productId);
-
-            return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(newReview));
-        } catch (NumberFormatException e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.failure("INVALID_USER_ID", "Invalid user ID format."));
-        }
-    }
 }
