@@ -60,7 +60,7 @@ public class UserService {
         // 3. 거래 현황 조회 (상품 서비스 연동)
         // Feign Client를 사용해 상품 서비스의 API 연동
         TransactionSummaryDTO transactionSummary = productClient
-                .getMyTransactionSummary(userId)
+                .getMyTransactionSummary()
                 .getData();
 
         log.info("상품서비스에서 받은 거래현황: {}", transactionSummary);
@@ -125,7 +125,7 @@ public class UserService {
      */
     @Transactional(readOnly = true)
     public TransactionSummaryDTO getTransactionSummary(Long userId) {
-        TransactionSummaryDTO summary = productClient.getMyTransactionSummary(userId).getData();
+        TransactionSummaryDTO summary = productClient.getMyTransactionSummary().getData();
 
         // 마이페이지용이므로 임시로 0 설정
         summary.setReviewCount(0);
@@ -147,7 +147,7 @@ public class UserService {
      */
     @Transactional(readOnly = true)
     public List<ProductSummaryDTO> getPurchasedProducts(Long userId) {
-        return productClient.getMyPurchases(userId).getData();
+        return productClient.getMyPurchases().getData();
     }
 
     /**
@@ -155,7 +155,7 @@ public class UserService {
      */
     @Transactional(readOnly = true)
     public List<ProductSummaryDTO> getSoldProducts(Long userId) {
-        return productClient.getMySales(userId).getData();
+        return productClient.getMySales().getData();
     }
 
     /**
