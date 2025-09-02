@@ -10,7 +10,9 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 @Entity
-@Table(name = "tbl_chat_room")
+@Table(name = "tbl_chat_room", uniqueConstraints = {
+    @UniqueConstraint(columnNames = {"buyer_id", "seller_id", "product_id"})
+})
 public class ChatRoom {
 
     @Id

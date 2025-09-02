@@ -3,34 +3,37 @@ package com.momnect.postservice.command.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.time.LocalDateTime;
-
-@Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
-@Table(name = "tbl_post_editor")
+@Entity
+@Table(name = "post_editor")
 public class PostEditor {
 
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    // 게시글
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "post_id", nullable = false)
-    @Setter
     private Post post;
 
-    @Column(name = "original_file_name", nullable = false)
-    private String originalFileName;
+    // 파일서버에서 받은 파일 ID (없으면 null 가능)
+    @Column(name = "file_id")
+    private Long fileId;
 
-    @Column(name = "rename_file_name", nullable = false)
-    private String renameFileName;
+    // 파일서버에서 받은 public URL
+    @Column(name = "file_url", length = 1000)
+    private String fileUrl;
 
-    @Column(name = "state", nullable = false, length = 1)
+    // 사용 여부 (예: 'Y' / 'N')
+    @Column(name = "state", length = 1, nullable = false)
     private String state;
 
-    // 컬럼명이 create_at 임에 주의
-    @Column(name = "create_at", nullable = false)
-    private LocalDateTime createAt;
+    // Post 양방향 연관관계 편의 메서드
+    public void setPost(Post post) {
+        this.post = post;
+    }
 }
