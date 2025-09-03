@@ -111,7 +111,7 @@ public class ReviewService<ProductDTO> {
     public String getSentimentSummary(String sentiment) {
         // 먼저 해당 감정의 리뷰 개수 확인
         long reviewCount = reviewSentimentRepository.countBySentiment(sentiment);
-        
+
         // 리뷰가 0개인 경우 즉시 반환
         if (reviewCount == 0) {
             return sentiment + " 리뷰가 존재하지 않습니다.";
@@ -119,7 +119,7 @@ public class ReviewService<ProductDTO> {
 
         // 저장된 요약글을 확인
         String storedSummary = reviewAiService.getStoredSentimentSummary(sentiment);
-        
+
         // 저장된 요약글이 있고, "존재하지 않습니다"가 아닌 경우 반환
         if (!storedSummary.contains("존재하지 않습니다") && !storedSummary.contains("AI 요약 생성에 실패했습니다")) {
             return storedSummary;
@@ -138,12 +138,12 @@ public class ReviewService<ProductDTO> {
 
         // AI로 요약글 생성하고 DB에 저장
         String generatedSummary = reviewAiService.generateAndSaveSentimentSummary(sentiment, contents, reviewCount);
-        
+
         // 생성된 요약글이 실패 메시지인 경우 기본 메시지 반환
         if (generatedSummary.contains("AI 요약 생성에 실패했습니다") || generatedSummary.contains("오류가 발생했습니다")) {
             return sentiment + " 리뷰에 대한 요약을 생성할 수 없습니다.";
         }
-        
+
         return generatedSummary;
     }
 
@@ -348,7 +348,7 @@ public class ReviewService<ProductDTO> {
                     .orElseGet(() -> ReviewSentiment.builder().review(updatedReview).build());
             reviewSentiment.setSentiment(sentiment);
             reviewSentimentRepository.save(reviewSentiment);
-            
+
             // 리뷰 업데이트 후 해당 감정의 요약글 업데이트
             updateSentimentSummaryAfterReviewChange(sentiment);
         }

@@ -107,20 +107,20 @@ public class ReviewController {
     @GetMapping("/summary/status")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getSummaryStatus() {
         Map<String, Object> status = new HashMap<>();
-        
+
         // 각 감정별 리뷰 개수
         long positiveCount = reviewService.getReviewStats().getPositiveReviews();
         long negativeCount = reviewService.getReviewStats().getNegativeReviews();
-        
+
         // 각 감정별 요약글
         String positiveSummary = reviewService.getSentimentSummary("긍정적");
         String negativeSummary = reviewService.getSentimentSummary("부정적");
-        
+
         status.put("positiveReviews", positiveCount);
         status.put("negativeReviews", negativeCount);
         status.put("positiveSummary", positiveSummary);
         status.put("negativeSummary", negativeSummary);
-        
+
         return ResponseEntity.ok(ApiResponse.success(status));
     }
 
