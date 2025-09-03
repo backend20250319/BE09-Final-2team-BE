@@ -8,6 +8,7 @@ import com.momnect.chatservice.command.entity.ChatParticipant;
 import com.momnect.chatservice.command.mongo.ChatMessage;
 import com.momnect.chatservice.command.repository.ChatMessageRepository;
 import com.momnect.chatservice.command.repository.ChatParticipantRepository;
+import com.momnect.chatservice.command.service.ChatRoomService;
 import lombok.RequiredArgsConstructor;
 import org.bson.types.ObjectId;
 import org.springframework.dao.DataAccessException;
@@ -31,9 +32,23 @@ public class ChatMessageService {
     private final ChatMessageRepository messageRepository;
     private final ChatParticipantRepository participantRepository;
     private final MongoTemplate mongoTemplate;
+    private final ChatRoomService chatRoomService;
     // private final StringRedisTemplate srt; // 임시로 Redis 의존성 제거
 
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    // =========================
+    // 메시지 전송 시 자동 채팅방 생성 (새로운 메서드)
+    // =========================
+    /** 메시지 전송 시 채팅방이 없으면 자동 생성 + 메시지 전송 */
+    @Transactional
+    public ChatMessageResponse sendWithAutoRoomCreation(ChatMessageSendRequest req, Long userId) {
+        // 1) 채팅방이 없으면 자동 생성
+        Long roomId = chatRoomService.findOrCreateRoomForProduct(req.getProductId(), userId);
+        
+        // 2) 기존 send 메서드 호출
+        return send(roomId, req, userId);
+    }
 
     // =========================
     // 메시지 전송 (REST에서 사용)
@@ -219,7 +234,8 @@ public class ChatMessageService {
 
         return ChatMessageResponse.builder()
                 .id(m.getId() != null ? m.getId().toHexString() : null)
-                .chatRoomId(chatRoomId)
+                .roomId(chatRoomId)        // roomId 필드 설정
+                .chatRoomId(chatRoomId)    // 기존 필드 (하위 호환성)
                 .senderId(senderId)
                 .message(m.getContent())
                 .sentAt(m.getSentAt())
