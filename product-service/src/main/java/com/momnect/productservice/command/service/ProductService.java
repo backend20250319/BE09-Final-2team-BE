@@ -116,7 +116,63 @@ public class ProductService {
         return toProductSummaryDtos(products, userId);
     }
 
-    // ====================== 홈 섹션 ======================
+    /**
+     * 유사 상품 조회
+     */
+    public List<ProductSummaryDto> getSimilarProducts(String keyword, Long userId) throws IOException {
+        if (keyword == null || keyword.isBlank()) {
+            throw new IllegalArgumentException("검색 키워드는 필수입니다.");
+        }
+
+        // Elasticsearch BoolQuery
+        BoolQuery.Builder boolQuery = new BoolQuery.Builder()
+                .must(m -> m.term(t -> t.field("isDeleted").value(false)))
+                .mustNot(m -> m.term(t -> t.field("tradeStatus").value("SOLD")));
+
+        // 키워드 검색
+        boolQuery.should(s -> s.match(m -> m.field("name").query(keyword)))
+                .should(s -> s.match(m -> m.field("content").query(keyword)))
+                .should(s -> s.match(m -> m.field("hashtags").query(keyword)))
+                .minimumShouldMatch("1");
+
+        // 실행
+        SearchResponse<ProductDocument> response = esClient.search(s -> s
+                        .index("products")
+                        .size(30)
+                        .query(q -> q.bool(boolQuery.build()))
+                        .sort(o -> o.field(f -> f.field("createdAt").order(SortOrder.Desc))),
+                ProductDocument.class);
+
+        // 현재 유저가 찜한 상품들
+        Set<Long> wishlistIds = (userId != null)
+                ? wishlistRepository.findProductIdsByUserId(userId)
+                : Collections.emptySet();
+
+        // 변환
+        return response.hits().hits().stream()
+                .map(Hit::source)
+                .filter(Objects::nonNull)
+                .map(doc -> {
+                    ProductSummaryDto dto = ProductSummaryDto.fromDocument(doc);
+
+                    dto.setInWishlist(wishlistIds.contains(dto.getId()));
+
+                    // 썸네일 절대경로 보정
+                    if (doc.getThumbnailImagePath() != null) {
+                        dto.setThumbnailUrl(toAbsoluteUrl(doc.getThumbnailImagePath()));
+                    }
+
+                    return dto;
+                })
+                .toList();
+    }
+
+    /**
+     * 홈 상품 조회
+     * - 인기 상품
+     * - 추천 상품
+     * - 신규 상품
+     */
     public ProductSectionsResponse getHomeProductSections(Long userId) {
         List<ProductSummaryDto> popular = getPopularTop30(userId);
         List<ProductSummaryDto> latest = getNewTop30(userId);
@@ -673,5 +729,4 @@ public class ProductService {
                         dto -> toAbsoluteUrl(dto.getPath())
                 ));
     }
-
 }

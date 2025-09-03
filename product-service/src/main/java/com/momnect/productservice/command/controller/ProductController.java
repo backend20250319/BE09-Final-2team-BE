@@ -44,6 +44,17 @@ public class ProductController {
         return ResponseEntity.ok(ApiResponse.success(wishlist));
     }
 
+    /***
+     * 유사 상품 추천
+     */
+    @GetMapping("/similar")
+    public ResponseEntity<ApiResponse<List<ProductSummaryDto>>> getSimilarProducts(
+            @RequestParam String keyword,
+            @AuthenticationPrincipal String userId) throws IOException {
+        List<ProductSummaryDto> wishlist = productService.getSimilarProducts(keyword, parseUserId(userId));
+        return ResponseEntity.ok(ApiResponse.success(wishlist));
+    }
+
 
     /***
      * 홈 일괄 섹션 (선택)
