@@ -36,7 +36,7 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth ->
                         auth
-                              //  .requestMatchers("/**").permitAll()
+                                .requestMatchers("/posts/**").authenticated()
                                 .anyRequest().permitAll()
                 )
                 .addFilterBefore(headerAuthenticationFilter(),

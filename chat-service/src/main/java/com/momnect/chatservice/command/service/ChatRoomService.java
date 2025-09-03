@@ -124,6 +124,68 @@ public class ChatRoomService {
         }
     }
 
+    /** 메시지 전송 시 채팅방이 없으면 자동 생성 (상품 ID 기반) */
+    @Transactional
+    public Long findOrCreateRoomForProduct(Long productId, Long userId) {
+        try {
+            // 상품 정보에서 sellerId 조회
+            ApiResponse<List<ProductSummaryResponse>> response = productClient.getProductSummaries(List.of(productId), userId);
+            if (!response.isSuccess() || response.getData() == null || response.getData().isEmpty()) {
+                throw new IllegalArgumentException("상품을 찾을 수 없습니다. ID: " + productId);
+            }
+            List<ProductSummaryResponse> productInfos = response.getData();
+        
+            Long sellerId = productInfos.get(0).getSellerId();
+            Long buyerId = userId; // 현재 로그인한 사용자가 buyer
+            
+            // 자신의 상품에 대해 채팅방을 생성하려는 경우 방지
+            if (buyerId.equals(sellerId)) {
+                throw new IllegalArgumentException("자신의 상품에 대해 채팅방을 생성할 수 없습니다.");
+            }
+            
+            // 기존 채팅방 확인
+            ChatRoom existed = chatRoomRepository
+                    .findFirstByBuyerIdAndSellerIdAndProductId(buyerId, sellerId, productId);
+            if (existed != null) {
+                log.info("기존 채팅방 발견: roomId={}, buyerId={}, sellerId={}, productId={}", 
+                        existed.getId(), buyerId, sellerId, productId);
+                return existed.getId();
+            }
+
+            // 새 채팅방 생성
+            ChatRoom room = ChatRoom.builder()
+                    .productId(productId)
+                    .buyerId(buyerId)
+                    .sellerId(sellerId)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+
+            ChatRoom saved = chatRoomRepository.save(room);
+            log.info("새 채팅방 자동 생성 성공: roomId={}, buyerId={}, sellerId={}, productId={}", 
+                    saved.getId(), buyerId, sellerId, productId);
+
+            // 참여자 2명 생성
+            participantRepository.save(ChatParticipant.builder()
+                    .chatRoomId(saved.getId())
+                    .userId(buyerId)
+                    .unreadCount(0)
+                    .lastReadAt(LocalDateTime.now())
+                    .build());
+
+            participantRepository.save(ChatParticipant.builder()
+                    .chatRoomId(saved.getId())
+                    .userId(sellerId)
+                    .unreadCount(0)
+                    .lastReadAt(LocalDateTime.now())
+                    .build());
+
+            return saved.getId();
+        } catch (Exception e) {
+            log.error("채팅방 자동 생성 중 오류 발생: {}", e.getMessage(), e);
+            throw e;
+        }
+    }
+
     /** 내가 참여한 방 목록(최근 메시지 기준 정렬) */
     @Transactional(readOnly = true)
     public List<ChatRoomSummaryResponse> listRoomsForUser(Long userId) {

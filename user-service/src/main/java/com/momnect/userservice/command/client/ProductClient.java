@@ -24,15 +24,15 @@ public interface ProductClient {
 
     // 거래 현황 요약 정보 (로그인 사용자)
     @GetMapping("/trades/me/summary")
-    ApiResponse<TransactionSummaryDTO> getMyTransactionSummary(@RequestHeader("X-User-Id") Long userId);
+    ApiResponse<TransactionSummaryDTO> getMyTransactionSummary();
 
     // 구매 상품 목록 조회 (로그인 사용자)
     @GetMapping("/trades/me/purchases")
-    ApiResponse<List<ProductSummaryDTO>> getMyPurchases(@RequestHeader("X-User-Id") Long userId);
+    ApiResponse<List<ProductSummaryDTO>> getMyPurchases();
 
     // 판매 상품 목록 조회 (로그인 사용자)
     @GetMapping("/trades/me/sales")
-    ApiResponse<List<ProductSummaryDTO>> getMySales(@RequestHeader("X-User-Id") Long userId);
+    ApiResponse<List<ProductSummaryDTO>> getMySales();
 
     // 타 사용자 거래 현황 요약 정보
     @GetMapping("/trades/users/{userId}/summary")

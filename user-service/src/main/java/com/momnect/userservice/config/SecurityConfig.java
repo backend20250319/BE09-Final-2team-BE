@@ -43,10 +43,15 @@ public class SecurityConfig {
                                         .authenticationEntryPoint(restAuthenticationEntryPoint)
                 )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.POST, "/auth/signup", "/auth/login", "/auth/verify-account", "/auth/logout").permitAll()
+                        // 회원가입/로그인 관련
+                        .requestMatchers(HttpMethod.POST, "/auth/signup", "/auth/login", "/auth/verify-account").permitAll()
                         .requestMatchers(HttpMethod.PUT, "/auth/reset-password").permitAll()
                         .requestMatchers(HttpMethod.POST, "/auth/validate", "/auth/validate-cookie").permitAll()
+
+                        // API 문서 (모든 HTTP 메서드 허용)
                         .requestMatchers(HttpMethod.GET, "/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**").permitAll()
+
+                        // 공개 사용자 정보
                         .requestMatchers(HttpMethod.GET, "/users/check").permitAll()
                         .requestMatchers(HttpMethod.GET, "/users/search-areas").permitAll()
                         .requestMatchers(HttpMethod.GET, "/users/{userId}/profile-page").permitAll() // 타사용자 프로필 페이지 정보
@@ -54,7 +59,12 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/users/{userId}").permitAll()
                         .requestMatchers(HttpMethod.GET, "/users/{userId}/exists").permitAll()
                         .requestMatchers(HttpMethod.GET, "/users/{userId}/basic").permitAll()
+
+                        // 인증 필요
+                        .requestMatchers(HttpMethod.POST, "/auth/logout").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/users/me/trade-locations").authenticated()
+
+                        // 나머지는 모두 인증 필요
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
