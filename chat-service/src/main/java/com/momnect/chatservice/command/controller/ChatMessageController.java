@@ -35,6 +35,20 @@ public class ChatMessageController {
         return ResponseEntity.ok(ApiResponse.success(sent));
     }
 
+    /** 메시지 전송 시 자동 채팅방 생성 */
+    @PostMapping("/send-with-room")
+    public ResponseEntity<ApiResponse<ChatMessageResponse>> sendWithAutoRoomCreation(
+            @Valid @RequestBody ChatMessageSendRequest req,
+            @AuthenticationPrincipal String userId
+    ) {
+        try {
+            ChatMessageResponse sent = chatMessageService.sendWithAutoRoomCreation(req, Long.valueOf(userId));
+            return ResponseEntity.ok(ApiResponse.success(sent));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.failure("BAD_REQUEST", e.getMessage()));
+        }
+    }
+
     /** 메시지 조회 (최신순 페이지네이션) */
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<ChatMessageResponse>>> list(
