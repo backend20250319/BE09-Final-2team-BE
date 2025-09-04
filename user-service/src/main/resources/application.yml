@@ -41,3 +41,7 @@ springdoc:
   packages-to-scan: com.momnect.userservice
   default-consumes-media-type: application/json;charset=UTF-8
   default-produces-media-type: application/json;charset=UTF-8
+
+# 파일 서비스 URL 설정
+ftp:
+  file-server-url: http://dev.macacolabs.site:8008
