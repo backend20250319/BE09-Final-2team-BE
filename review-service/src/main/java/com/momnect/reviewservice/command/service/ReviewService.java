@@ -97,6 +97,19 @@ public class ReviewService<ProductDTO> {
 
         return new ReviewStatsResponse(averageRating, totalReviews, positiveReviews, negativeReviews);
     }
+
+    public ReviewStatsResponse getReviewStats(Long userId) {
+        long positiveReviews = reviewSentimentRepository.countBySentimentAndReview_ReviewId("긍정적", userId);
+        long negativeReviews = reviewSentimentRepository.countBySentimentAndReview_ReviewId("부정적", userId);
+        long totalReviews = reviewRepository.count();
+
+        double averageRating = reviewRepository.findAll().stream()
+                .mapToDouble(Review::getRating)
+                .average()
+                .orElse(0.0);
+
+        return new ReviewStatsResponse(averageRating, totalReviews, positiveReviews, negativeReviews);
+    }
     /**
      * 특정 사용자의 총 리뷰 개수를 조회합니다.
      * @param userId 조회할 사용자의 ID

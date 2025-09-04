@@ -4,6 +4,7 @@ import com.momnect.productservice.command.dto.product.*;
 import com.momnect.productservice.command.service.ProductService;
 import com.momnect.productservice.common.ApiResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
