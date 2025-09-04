@@ -11,6 +11,7 @@ import java.util.Optional;
 public interface ReviewSentimentRepository extends JpaRepository<ReviewSentiment, Long> {
     Optional<ReviewSentiment> findByReview_ReviewId(Long reviewId);
     long countBySentiment(String sentiment);
+    long countBySentimentAndReview_ReviewId(String sentiment, Long userId);
     List<ReviewSentiment> findBySentiment(String sentiment);
 
 }
