@@ -66,11 +66,7 @@ public class UserController {
         // 리뷰 서비스가 아직 없으므로 임시로 0 설정
         transactionSummary.setReviewCount(0);
 
-        MypageDTO dashboardInfo = MypageDTO.builder()
-                .profileInfo(profileInfo)
-                .childList(children)
-                .transactionSummary(transactionSummary)
-                .build();
+        MypageDTO dashboardInfo = userService.getMypageDashboard(userId);
 
         return ResponseEntity.ok(ApiResponse.success(dashboardInfo));
     }

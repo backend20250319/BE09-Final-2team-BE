@@ -1,5 +1,6 @@
 package com.momnect.userservice.command.service;
 
+import com.momnect.userservice.command.client.FileClient;
 import com.momnect.userservice.command.client.ProductClient;
 import com.momnect.userservice.command.client.ReviewClient;
 import com.momnect.userservice.command.dto.auth.ChangePasswordRequest;
@@ -22,6 +23,7 @@ import com.momnect.userservice.exception.DuplicateUserException;
 import com.momnect.userservice.exception.UserNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,8 +43,19 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
     private final ChildService childService;
-    private final ProductClient productClient; // Feign Client 주입
-    private final ReviewClient reviewClient;   // Feign Client 주입
+    private final ProductClient productClient;
+    private final ReviewClient reviewClient;
+    private final FileClient fileClient;
+
+    @Value("${ftp.file-server-url}")
+    private String fileServerUrl;
+
+    private static final List<String>  DEFAULT_PROFILE_IMAGE_PATHS = List.of(
+            "/2/1756892223966_3b405814-568e-4c17-9c8a-6eebff1429f0.png",
+            "/2/1756892251934_5ede86b7-b37f-4550-81ea-4987bc81e2bd.png",
+            "/2/1756892272610_bc3b5443-e7f9-42e8-a83b-b3d93e04b050.png",
+            "/2/1756892288790_890b317f-320a-4a55-b590-f66f81dbe794.png"
+    );
 
     /**
      * 마이페이지 대시보드 정보 조회
@@ -191,6 +204,13 @@ public class UserService {
             user.setPhoneNumber(cleanPhoneNumber);
         }
 
+        // 요청에 profileImageUrl이 명시적으로 포함된 경우에만 업데이트
+        // 새로운 이미지가 업로드되면 URL이 들어올 것이고, 그렇지 않으면 null일 것
+        // 여기서 null 체크를 통해 기존 값이 덮어쓰여지는 것을 방지
+        if (request.getProfileImageUrl() != null) {
+            user.setProfileImageUrl(request.getProfileImageUrl());
+        }
+
         user.setUpdatedBy(userId);
         User savedUser = userRepository.save(user);
 
@@ -264,6 +284,13 @@ public class UserService {
             throw new UserNotFoundException("탈퇴한 사용자입니다.");
         }
 
+        // 프로필 이미지가 없는 경우 기본 이미지 URL을 설정
+        String profileImageUrl = user.getProfileImageUrl();
+        if (profileImageUrl == null || profileImageUrl.isEmpty()) {
+            int index = (int) (userId %  DEFAULT_PROFILE_IMAGE_PATHS.size());
+            profileImageUrl = fileServerUrl + DEFAULT_PROFILE_IMAGE_PATHS.get(index);
+        }
+
         // 거래지역 조회
         List<String> tradeLocations = Collections.emptyList();
         String tradeAreaIds = user.getTradeAreaIds();
@@ -278,7 +305,7 @@ public class UserService {
         return PublicUserDTO.builder()
                 .id(user.getId())
                 .nickname(user.getNickname())
-                .profileImageUrl(user.getProfileImageUrl())
+                .profileImageUrl(profileImageUrl)
                 .createdAt(user.getCreatedAt())
                 .tradeLocations(tradeLocations)
                 .build();
