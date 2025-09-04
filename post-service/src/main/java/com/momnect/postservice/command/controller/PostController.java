@@ -1,5 +1,7 @@
 package com.momnect.postservice.command.controller;
 
+import com.momnect.postservice.command.client.UserClient;
+import com.momnect.postservice.command.client.dto.PublicUserDTO;
 import com.momnect.postservice.command.dto.CommentDtos;
 import com.momnect.postservice.command.dto.LikeSummaryResponse;
 import com.momnect.postservice.command.dto.PostRequestDto;
@@ -13,6 +15,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
@@ -31,6 +35,7 @@ public class PostController {
     private final PostService postService;
     private final CommentService commentService;
     private final LikeService likeService;
+    private final UserClient userClient;
 
     private static final String[] FILE_PART_NAMES = new String[]{
             "file", "files", "image", "images", "multipartFile",
@@ -42,12 +47,14 @@ public class PostController {
             produces = MediaType.APPLICATION_JSON_VALUE
     )
     public ApiResponse<Long> create(
-            @RequestParam("userId") Long userId,
+            @AuthenticationPrincipal String userId,
             @RequestParam("title") String title,
             @RequestParam("contentHtml") String contentHtml,
             @RequestParam("categoryName") String categoryName,
             MultipartHttpServletRequest multipartRequest // 파트 이름 유연하게 처리
     ) {
+
+        log.info("[create] ==================>>> {}", userId);
         // 1) 멀티파트에서 지원하는 모든 파트 이름을 모아 파일 리스트로 정규화
         List<MultipartFile> images = collectFiles(multipartRequest);
 
@@ -64,9 +71,12 @@ public class PostController {
 
         // 3) DTO 구성
         PostRequestDto dto = new PostRequestDto();
-        dto.setUserId(userId);
+        dto.setUserId(Long.valueOf(userId));
         dto.setTitle(title);
         dto.setContentHtml(contentHtml);
+        if(categoryName.equals("tips")){
+            categoryName = "Tip";
+        }
         dto.setCategoryName(categoryName);
         dto.setHasImage(!CollectionUtils.isEmpty(images));
 
@@ -78,6 +88,9 @@ public class PostController {
     @GetMapping("/{id}")
     public ApiResponse<Map<String, Object>> getOne(@PathVariable Long id) {
         PostResponseDto post = postService.getPost(id);
+        ResponseEntity<ApiResponse<PublicUserDTO>> userInfo = userClient.getBasicInfo(id);
+        log.info("[userInfo] =======> {}", userInfo);
+        post.setNickName(userInfo.getBody().getData().getNickname());
         List<CommentDtos.Response> comments = commentService.listForPost(id);
         LikeSummaryResponse likeSummary = likeService.summary(id);
 
@@ -93,7 +106,15 @@ public class PostController {
             @RequestParam(required = false) String category,
             Pageable pageable
     ) {
-        return ApiResponse.success(postService.getPosts(category, pageable));
+        Page<PostResponseDto> posts = postService.getPosts(category, pageable);
+        for (PostResponseDto post : posts) {
+            ResponseEntity<ApiResponse<PublicUserDTO>> userInfo = userClient.getBasicInfo(post.getUserId());
+            log.info("[userInfo] =======> {}", userInfo);
+            post.setNickName(userInfo.getBody().getData().getNickname());
+        }
+        log.info("[list] posts=============================> {}", posts);
+        return ApiResponse.success(posts);
+
     }
 
     private List<MultipartFile> collectFiles(MultipartHttpServletRequest request) {
