@@ -8,15 +8,19 @@ spring:
     name: gateway-server
   cloud:
     gateway:
-      # cors 설정
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin
+      # CORS 설정
       globalcors:
         add-to-simple-url-handler-mapping: true
         corsConfigurations:
-          '[/**]':
-            allowedOrigins: "http://localhost:3000"
+          "[/**]":
+            allowedOriginPatterns:
+              - "http://localhost:3000"
             allowedMethods:
               - GET
               - POST
+              - PUT
               - PATCH
               - DELETE
               - OPTIONS
@@ -24,36 +28,64 @@ spring:
               - "*"
             allowCredentials: true
       routes:
-        - id: user-service
+        # 1) WebSocket 업그레이드용 (가장 먼저 매칭)
+        - id: websocket-service-ws
+          uri: lb:ws://WEBSOCKET-SERVICE
+          order: 0
+          predicates:
+            - Path=/ws-stomp,/ws-stomp/**
+            - Header=Upgrade, websocket
+
+        # 2) SockJS HTTP 요청용 (/ws-stomp/info, /xhr 등)
+        - id: websocket-service-http
+          uri: lb://WEBSOCKET-SERVICE
+          order: 1
+          predicates:
+            - Path=/ws-stomp,/ws-stomp/**
+        - id: user-service-auth
           uri: lb://USER-SERVICE
           predicates:
-            - Path=/api/v1/user-service/**
+            - Path=/api/v1/user-service/auth/**
           filters:
-            - RewritePath=/api/v1/user-service/(?<segment>.*), /$\{segment}
+            - RewritePath=/api/v1/user-service/(?<segment>.*), /${segment}
+        - id: user-service-users
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/api/v1/user-service/users/**
+          filters:
+            - RewritePath=/api/v1/user-service/(?<segment>.*), /${segment}
         - id: product-service
           uri: lb://PRODUCT-SERVICE
           predicates:
             - Path=/api/v1/product-service/**
           filters:
-            - RewritePath=/api/v1/product-service/(?<segment>.*), /$\{segment}
+            - RewritePath=/api/v1/product-service/(?<segment>.*), /${segment}
         - id: chat-service
           uri: lb://CHAT-SERVICE
           predicates:
             - Path=/api/v1/chat-service/**
           filters:
-            - RewritePath=/api/v1/chat-service/(?<segment>.*), /$\{segment}
+            - RewritePath=/api/v1/chat-service/(?<segment>.*), /${segment}
         - id: post-service
           uri: lb://POST-SERVICE
           predicates:
             - Path=/api/v1/post-service/**
           filters:
-            - RewritePath=/api/v1/post-service/(?<segment>.*), /$\{segment}
+            - RewritePath=/api/v1/post-service/(?<segment>.*), /${segment}
         - id: review-service
           uri: lb://REVIEW-SERVICE
           predicates:
             - Path=/api/v1/review-service/**
           filters:
-            - RewritePath=/api/v1/review-service/(?<segment>.*), /$\{segment}
+            - RewritePath=/api/v1/review-service/(?<segment>.*), /${segment}
+        # file service
+        - id: file-service
+          uri: lb://FILE-SERVICE
+          predicates:
+            - Path=/api/v1/file-service/**
+          filters:
+            - RewritePath=/api/v1/file-service/(?<segment>.*), /${segment}
+
 eureka:
   client:
     register-with-eureka: true
@@ -76,3 +108,5 @@ springdoc:
         url: /api/v1/post-service/v3/api-docs
       - name: review-service
         url: /api/v1/review-service/v3/api-docs
+      - name: file-service
+        url: /api/v1/file-service/v3/api-docs

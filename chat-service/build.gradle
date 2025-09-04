@@ -23,6 +23,14 @@ ext {
 }
 
 dependencies {
+
+    // 채팅
+    implementation 'org.springframework.boot:spring-boot-starter-websocket'
+    implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
+
+    // Redis (Spring Data Redis + Lettuce 클라이언트)
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
     // ModelMapper - 객체 매핑(DTO ↔ Entity 변환 등)
     implementation 'org.modelmapper:modelmapper:3.2.1'
 

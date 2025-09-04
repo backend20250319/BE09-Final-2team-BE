@@ -56,6 +56,8 @@ dependencies {
     // test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    implementation 'commons-net:commons-net:3.10.0'
 }
 
 dependencyManagement {
@@ -66,4 +68,8 @@ dependencyManagement {
 
 tasks.named('test') {
     useJUnitPlatform()
+}
+
+dependencies {
+    implementation 'org.jsoup:jsoup:1.17.2'
 }

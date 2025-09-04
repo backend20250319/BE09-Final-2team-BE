@@ -37,10 +37,25 @@ public class SecurityConfig {
                                         .authenticationEntryPoint(restAuthenticationEntryPoint)
                 )
                 .authorizeHttpRequests(auth ->
-                        auth.requestMatchers(HttpMethod.POST, "/auth/signup", "/auth/login")
+                        auth
+                                .requestMatchers(HttpMethod.GET,
+                                        "/products/**",            // 상품 상세/요약/검색/섹션 조회
+                                        "/trades/users/*/summary", // 상품 거래 횟수
+                                        "/trades/users/*/sales",   // 유저 판매 상품 조회
+
+                                        "/swagger-ui/**",
+                                        "/v3/api-docs/**",
+                                        "/swagger-resources/**",
+                                        "/areas/load",
+                                        "/areas/search",
+                                        "/areas/**",
+                                        "/categories/init",
+                                        "/categories/tree"
+                                )
                                 .permitAll()
-                                .requestMatchers(HttpMethod.GET, "/swagger-ui/**", "/v3/api-docs/**",
-                                        "/swagger-resources/**")
+                                .requestMatchers(HttpMethod.POST,
+                                        "/products/search"
+                                )
                                 .permitAll()
                                 .anyRequest()
                                 .authenticated()

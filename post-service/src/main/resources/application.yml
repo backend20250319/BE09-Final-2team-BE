@@ -17,6 +17,11 @@ spring:
     active: dev
   application:
     name: post-service
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 20MB
+      max-request-size: 100MB
   jpa:
     hibernate:
       ddl-auto: create
@@ -25,7 +30,6 @@ spring:
       hibernate:
         format_sql: true
 
-# swagger
 springdoc:
   packages-to-scan: com.momnect.postservice
   default-consumes-media-type: application/json;charset=UTF-8
