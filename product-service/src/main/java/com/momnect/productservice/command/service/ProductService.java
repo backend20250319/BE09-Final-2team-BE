@@ -10,9 +10,11 @@ import co.elastic.clients.elasticsearch.core.SearchResponse;
 import co.elastic.clients.elasticsearch.core.search.Hit;
 import co.elastic.clients.json.JsonData;
 import com.momnect.productservice.command.client.FileClient;
+import com.momnect.productservice.command.client.ReviewClient;
 import com.momnect.productservice.command.client.UserClient;
 import com.momnect.productservice.command.client.dto.ChildDTO;
 import com.momnect.productservice.command.client.dto.ImageFileDTO;
+import com.momnect.productservice.command.client.dto.ReviewCountDTO;
 import com.momnect.productservice.command.client.dto.UserDTO;
 import com.momnect.productservice.command.document.ProductDocument;
 import com.momnect.productservice.command.dto.image.ProductImageDTO;
@@ -49,6 +51,7 @@ public class ProductService {
 
     private final FileClient fileClient;
     private final UserClient userClient;
+    private final ReviewClient reviewClient;
 
     private final ProductRepository productRepository;
     private final ProductCategoryRepository categoryRepository;
@@ -531,7 +534,14 @@ public class ProductService {
         Integer tradeCount =
                 productRepository.countByTradeStatusAndSellerIdOrBuyerId(TradeStatus.SOLD, sellerId, sellerId);
         // TODO: 리뷰 API 연동
-        Integer reviewCount = 44;
+        Integer reviewCount = 0;
+        try {
+            ReviewCountDTO resp = reviewClient.getReceivedReviewCount(sellerId);
+            reviewCount = (resp != null) ? resp.getCount() : 0;
+        } catch (Exception e) {
+            // 실패 시 안전하게 0으로 fallback
+            reviewCount = 0;
+        }
 
         sellerInfo.setTradeCount(tradeCount);
         sellerInfo.setReviewCount(reviewCount);
