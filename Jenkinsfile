@@ -30,8 +30,8 @@ pipeline {
                         for (service in services) {
                             dir(service) {
                                 bat "echo Building Docker image for ${service}"
-                                bat "docker build -t ${REGISTRY}/${service}:dev-${env.BUILD_NUMBER} ."
-                                bat "docker push ${REGISTRY}/${service}:dev-${env.BUILD_NUMBER}"
+                                bat "docker build -t ${REGISTRY}/${service}:latest ."
+                                bat "docker push ${REGISTRY}/${service}:latest"
                             }
                         }
                     }
@@ -50,7 +50,7 @@ pipeline {
 
                     withCredentials([file(credentialsId: 'KUBECONFIG_EC2', variable: 'KUBECONFIG')]) {
                         for (service in services) {
-                            bat "kubectl --kubeconfig=%KUBECONFIG% set image deployment/${service} ${service}=${REGISTRY}/${service}:dev-${env.BUILD_NUMBER} -n ${NAMESPACE}"
+                            bat "kubectl --kubeconfig=%KUBECONFIG% set image deployment/${service} ${service}=${REGISTRY}/${service}:latest -n ${NAMESPACE}"
                         }
                     }
                 }
