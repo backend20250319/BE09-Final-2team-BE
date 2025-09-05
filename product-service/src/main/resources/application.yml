@@ -2,19 +2,7 @@ server:
   port: 0
   forward-headers-strategy: framework
 
-eureka:
-  instance:
-    hostname: localhost
-    instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
-  client:
-    register-with-eureka: true
-    fetch-registry: true
-    service-url:
-      defaultZone: http://localhost:8761/eureka
-
 spring:
-  profiles:
-    active: dev
   application:
     name: product-service
   jpa:
@@ -24,11 +12,28 @@ spring:
     properties:
       hibernate:
         format_sql: true
-  # elasticsearch
-  elasticsearch:
-    uris: http://localhost:9200
 
-# swagger
+  elasticsearch:
+    uris: ${ELASTICSEARCH}
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASS}
+
+eureka:
+  instance:
+    prefer-ip-address: true
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      defaultZone: ${DEFAULT_ZONE}
+
+ftp:
+  base-url: ${FTP_SERVER_URL}
+
 springdoc:
   packages-to-scan: com.momnect.productservice
   default-consumes-media-type: application/json;charset=UTF-8

@@ -1,6 +1,9 @@
 # Created by https://www.toptal.com/developers/gitignore/api/intellij+all,intellij,visualstudio,visualstudiocode,java,git,web,eclipse,dbeaver
 # Edit at https://www.toptal.com/developers/gitignore?templates=intellij+all,intellij,visualstudio,visualstudiocode,java,git,web,eclipse,dbeaver
 
+### env
+.env
+
 ### yml
 application-dev.yml
 

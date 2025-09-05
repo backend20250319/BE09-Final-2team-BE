@@ -1,9 +1,10 @@
 server:
   port: 8000
 
+jwt:
+  secret: ${JWT_SECRET}
+
 spring:
-  profiles:
-    active: dev
   application:
     name: gateway-server
   cloud:
@@ -17,6 +18,7 @@ spring:
           "[/**]":
             allowedOriginPatterns:
               - "http://localhost:3000"
+              - "http://momnect-frontend-env.eba-kf25bmmw.ap-northeast-2.elasticbeanstalk.com"
             allowedMethods:
               - GET
               - POST
@@ -91,7 +93,7 @@ eureka:
     register-with-eureka: true
     fetch-registry: true
     service-url:
-      defaultZone: http://localhost:8761/eureka
+      defaultZone: ${DEFAULT_ZONE}
 
 # swagger
 springdoc:

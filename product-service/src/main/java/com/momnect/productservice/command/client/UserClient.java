@@ -12,8 +12,7 @@ import java.util.List;
 
 // gateway 통해서 접근
 @FeignClient(
-        name = "user-service-users",
-        url = "http://localhost:8000/api/v1/user-service",
+        name = "user-service",
         configuration = FeignClientConfig.class)
 public interface UserClient {
 

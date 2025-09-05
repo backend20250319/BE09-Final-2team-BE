@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@FeignClient(name = "product-service", url = "http://localhost:8000/api/v1/product-service", configuration = FeignClientConfig.class)
+@FeignClient(name = "product-service", configuration = FeignClientConfig.class)
 public interface ProductClient {
 
     // 거래지역 검색 API
