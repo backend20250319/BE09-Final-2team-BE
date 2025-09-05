@@ -12,7 +12,6 @@ import java.util.List;
 // gateway 통해서 접근
 @FeignClient(
         name = "file-service",
-        url = "http://localhost:8000/api/v1/file-service",
         configuration = FeignClientConfig.class)
 public interface FileClient {
 

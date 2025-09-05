@@ -8,6 +8,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ReviewRequest {
+    private Long userId;
+    private Long productId;
     private float rating;
     private String content;
     private Boolean kind;

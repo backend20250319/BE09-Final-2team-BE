@@ -2,19 +2,7 @@ server:
   port: 0
   forward-headers-strategy: framework
 
-eureka:
-  instance:
-    hostname: localhost
-    instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
-  client:
-    register-with-eureka: true
-    fetch-registry: true
-    service-url:
-      defaultZone: http://localhost:8761/eureka
-
 spring:
-  profiles:
-    active: dev
   application:
     name: chat-service
   jpa:
@@ -24,13 +12,24 @@ spring:
     properties:
       hibernate:
         format_sql: true
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASS}
   data:
-    redis:
-      host: localhost
-      port: 6379
-      timeout: 2000ms
+    mongodb:
+      uri: ${MONGODB}
 
-# Feign Client 설정
+eureka:
+  instance:
+    prefer-ip-address: true
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      defaultZone: ${DEFAULT_ZONE}
+
 feign:
   client:
     config:
@@ -38,7 +37,7 @@ feign:
         connectTimeout: 5000
         readTimeout: 5000
       user-service:
-        url: http://localhost:8000/api/v1/user-service
+        url: http://gateway-service:8000/api/v1/user-service
 
 logging:
   level:
@@ -46,9 +45,3 @@ logging:
     org.springframework.web: INFO
     org.springframework.security: DEBUG
     com.momnect.chatservice.command.client: DEBUG
-
-# swagger
-springdoc:
-  packages-to-scan: com.momnect.chatservice
-  default-consumes-media-type: application/json;charset=UTF-8
-  default-produces-media-type: application/json;charset=UTF-8

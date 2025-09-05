@@ -2,19 +2,7 @@ server:
   port: 0
   forward-headers-strategy: framework
 
-eureka:
-  instance:
-    hostname: localhost
-    instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
-  client:
-    register-with-eureka: true
-    fetch-registry: true
-    service-url:
-      defaultZone: http://localhost:8761/eureka
-
 spring:
-  profiles:
-    active: dev
   application:
     name: user-service
   jpa:
@@ -24,7 +12,12 @@ spring:
     properties:
       hibernate:
         format_sql: true
-  # 여기에 feign 설정을 추가
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASS}
+
   feign:
     client:
       config:
@@ -32,16 +25,28 @@ spring:
           connectTimeout: 5000
           readTimeout: 5000
       product-service:
-        url: http://localhost:8000/api/v1/product-service
+        url: lb://PRODUCT-SERVICE
       review-service:
-        url: http://localhost:8000/api/v1/review-service
+        url: lb://REVIEW-SERVICE
 
-# swagger
+eureka:
+  instance:
+    prefer-ip-address: true
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      defaultZone: ${DEFAULT_ZONE}
+
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: 604800000        # access 토큰 만료
+  refresh-expiration: 604800000 # refresh 토큰 만료
+
+ftp:
+  file-server-url: ${FTP_SERVER_URL}
+
 springdoc:
   packages-to-scan: com.momnect.userservice
   default-consumes-media-type: application/json;charset=UTF-8
   default-produces-media-type: application/json;charset=UTF-8
-
-# 파일 서비스 URL 설정
-ftp:
-  file-server-url: http://dev.macacolabs.site:8008

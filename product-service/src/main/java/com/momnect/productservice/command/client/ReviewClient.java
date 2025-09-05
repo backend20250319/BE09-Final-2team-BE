@@ -14,7 +14,6 @@ import java.util.List;
 // gateway 통해서 접근
 @FeignClient(
         name = "review-service",
-        url = "http://localhost:8000/api/v1/review-service",
         configuration = FeignClientConfig.class)
 public interface ReviewClient {
     /**
