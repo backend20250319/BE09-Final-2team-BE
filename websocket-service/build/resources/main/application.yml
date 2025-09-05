@@ -4,10 +4,9 @@ server:
 spring:
   application:
     name: websocket-service
-
   data:
     redis:
-      host: localhost
+      host: redis-service
       port: 6379
       timeout: 2000ms
       lettuce:
@@ -20,7 +19,7 @@ spring:
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: ${DEFAULT_ZONE}
   instance:
     prefer-ip-address: true
 

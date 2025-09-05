@@ -12,7 +12,7 @@ import java.util.List;
 
 // **** 예시 파일입니다. 추후 수정해서 사용
 // gateway 통해서 접근
-@FeignClient(name = "product-service", url = "http://localhost:8000/api/v1/product-service", configuration = FeignClientConfig.class)
+@FeignClient(name = "product-service", configuration = FeignClientConfig.class)
 public interface ProductClient {
 
       // 상품 요약 정보 요청 (기존 엔드포인트 활용)
