@@ -6,7 +6,6 @@ pipeline {
     environment {
         REGISTRY = "junga970"
         NAMESPACE = "momnect"
-        PATH = "/usr/local/bin:/usr/bin:/bin"
     }
 
     stages {
@@ -26,15 +25,13 @@ pipeline {
                     ]
 
                     withCredentials([usernamePassword(credentialsId: 'DOCKERHUB_PASSWORD', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                        sh "echo \"$DOCKER_PASS\" | docker login -u \"$DOCKER_USER\" --password-stdin"
+                        bat "echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin"
 
                         for (service in services) {
                             dir(service) {
-                                sh """
-                                echo "🚀 Building Docker image for ${service}"
-                                docker build -t ${REGISTRY}/${service}:dev-${env.BUILD_NUMBER} .
-                                docker push ${REGISTRY}/${service}:dev-${env.BUILD_NUMBER}
-                                """
+                                bat "echo Building Docker image for ${service}"
+                                bat "docker build -t ${REGISTRY}/${service}:dev-${env.BUILD_NUMBER} ."
+                                bat "docker push ${REGISTRY}/${service}:dev-${env.BUILD_NUMBER}"
                             }
                         }
                     }
@@ -53,9 +50,7 @@ pipeline {
 
                     withCredentials([file(credentialsId: 'KUBECONFIG_EC2', variable: 'KUBECONFIG')]) {
                         for (service in services) {
-                            sh """
-                            kubectl --kubeconfig=$KUBECONFIG set image deployment/${service} ${service}=${REGISTRY}/${service}:dev-${env.BUILD_NUMBER} -n ${NAMESPACE}
-                            """
+                            bat "kubectl --kubeconfig=%KUBECONFIG% set image deployment/${service} ${service}=${REGISTRY}/${service}:dev-${env.BUILD_NUMBER} -n ${NAMESPACE}"
                         }
                     }
                 }
