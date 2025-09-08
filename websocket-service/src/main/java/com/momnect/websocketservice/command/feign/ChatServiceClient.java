@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 
-@FeignClient(name = "chat-service", url = "http://localhost:8000/api/v1/chat-service", configuration = FeignClientConfig.class)
+@FeignClient(name = "chat-service", configuration = FeignClientConfig.class)
 public interface ChatServiceClient {
     
     @GetMapping("/chat/api/rooms/{roomId}/members/{userId}")
