@@ -225,18 +225,18 @@ graph TB
     Gateway --> Review[Review Service]
     Gateway --> Chat[Chat Service]
     Gateway --> File[File Service]
-
     Gateway --> WebSocket[WebSocket Service]
-    WebSocket --> Chat
 
-    User --> Discovery[Discovery Service]
-    Product --> Discovery
-    Post --> Discovery
-    Review --> Discovery
-    Chat --> Discovery
-    File --> Discovery
-    WebSocket --> Discovery
-    Gateway --> Discovery
+    %% 서비스들은 Discovery에 등록
+    User -->|register| Discovery[Discovery Service]
+    Product -->|register| Discovery
+    Post -->|register| Discovery
+    Review -->|register| Discovery
+    Chat -->|register| Discovery
+    File -->|register| Discovery
+    WebSocket -->|register| Discovery
+    Gateway -->|lookup| Discovery
+
 ```
 
 ## 🛠️ 설치 및 실행
