@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway-service
+  namespace: momnect
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gateway-service
+  template:
+    metadata:
+      labels:
+        app: gateway-service
+    spec:
+      containers:
+        - name: gateway-service
+          image: junga970/gateway-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - secretRef:
+                name: app-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway-service
+  namespace: momnect
+spec:
+  selector:
+    app: gateway-service
+  ports:
+    - port: 8000
+      targetPort: 8000
+      nodePort: 30080   # 외부 접근
+  type: NodePort

@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: discovery-service
+  namespace: momnect
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: discovery-service
+  template:
+    metadata:
+      labels:
+        app: discovery-service
+    spec:
+      containers:
+        - name: discovery-service
+          image: junga970/discovery-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8761
+          envFrom:
+            - secretRef:
+                name: app-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: discovery-service
+  namespace: momnect
+spec:
+  selector:
+    app: discovery-service
+  ports:
+    - port: 8761
+      targetPort: 8761
+      nodePort: 30061
+  type: NodePort
