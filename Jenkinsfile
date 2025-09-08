@@ -50,7 +50,8 @@ pipeline {
 
                     withCredentials([file(credentialsId: 'KUBECONFIG_EC2', variable: 'KUBECONFIG')]) {
                         for (service in services) {
-                            bat "kubectl --kubeconfig=%KUBECONFIG% set image deployment/${service} ${service}=${REGISTRY}/${service}:latest -n ${NAMESPACE}"
+                            //bat "kubectl --kubeconfig=%KUBECONFIG% set image deployment/${service} ${service}=${REGISTRY}/${service}:latest -n ${NAMESPACE}"
+                            bat "kubectl --kubeconfig=%KUBECONFIG% rollout restart deployment/${service} -n ${NAMESPACE}"
                         }
                     }
                 }
