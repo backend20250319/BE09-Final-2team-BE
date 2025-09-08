@@ -1,20 +1,9 @@
 server:
-  port: 8085
+  port: 0
 
 spring:
   application:
     name: websocket-service
-  data:
-    redis:
-      host: redis-service
-      port: 6379
-      timeout: 2000ms
-      lettuce:
-        pool:
-          max-active: 8
-          max-idle: 8
-          min-idle: 0
-          max-wait: -1ms
 
 eureka:
   client:
