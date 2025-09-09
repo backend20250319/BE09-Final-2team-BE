@@ -5,7 +5,7 @@ import org.springframework.cloud.openfeign.FeignClient;
 
 // **** 예시 파일입니다. 추후 수정해서 사용
 // gateway 통해서 접근
-@FeignClient(name = "product-service", url = "http://localhost:8000/api/v1/product-service", configuration = FeignClientConfig.class)
+@FeignClient(name = "product-service",  configuration = FeignClientConfig.class)
 public interface ProductClient {
 
 //    // 지역 정보 요청
