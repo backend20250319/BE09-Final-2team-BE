@@ -23,6 +23,15 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
      * */
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+        String path = exchange.getRequest().getURI().getPath();
+
+        // 인증이 필요 없는 경로들
+        if (path.contains("/auth/signup") ||
+                path.contains("/auth/login") ||
+                path.contains("/users/check")) {
+            return chain.filter(exchange);
+        }
+
         // 헤더에서 'Authorization' 값을 읽어온다.
         String authHeader = exchange.getRequest()
                 .getHeaders()
