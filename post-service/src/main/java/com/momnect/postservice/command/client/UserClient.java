@@ -7,12 +7,18 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestHeader;
 
 @FeignClient(
         name = "user-service-users",
-        configuration = FeignClientConfig.class)
+        url = "http://localhost:8000/api/v1/user-service",
+        configuration = FeignClientConfig.class
+)
 public interface UserClient {
 
     @GetMapping("/users/{userId}/basic")
-    ResponseEntity<ApiResponse<PublicUserDTO>> getBasicInfo(@PathVariable Long userId);
+    ResponseEntity<ApiResponse<PublicUserDTO>> getBasicInfo(
+            @PathVariable("userId") Long userId,
+            @RequestHeader("Authorization") String authorization
+    );
 }

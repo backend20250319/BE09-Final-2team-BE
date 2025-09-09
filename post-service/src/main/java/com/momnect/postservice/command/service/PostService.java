@@ -16,8 +16,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URI;
@@ -44,36 +48,40 @@ public class PostService {
                 .orElseThrow(() -> new IllegalArgumentException("카테고리를 찾을 수 없습니다: " + name));
     }
 
+    private String normalizeCategoryName(String category) {
+        if (category == null) return null;
+        String s = category.trim().toLowerCase();
+        if (s.equals("tips") || s.equals("육아 꿀팁") || s.equals("tip")) return "Tip";
+        if (s.equals("auction") || s.equals("경매")) return "Auction";
+        return category;
+    }
+
     @Transactional
     public Long createPost(PostRequestDto dto, List<MultipartFile> images) {
-        PostCategory category = requireCategoryByName(dto.getCategoryName());
+        String normalized = normalizeCategoryName(dto.getCategoryName());
+        PostCategory category = requireCategoryByName(normalized);
 
-        // 1) 파일 업로드 (기존 FileServiceClient 사용)
         List<ImageFileDTO> uploaded = (images == null || images.isEmpty())
                 ? Collections.emptyList()
                 : fileServiceClient.upload(images);
 
         uploaded.forEach(f -> log.info("[Upload] original={}, stored(guess)={}, path={}, url={}",
-                f.getFilename(),                       // 업로더가 알려준 원본 파일명(있다면)
-                lastSegment(pathFromUrl(f.getUrl())),  // URL에서 추정한 저장파일명
+                f.getFilename(),
+                lastSegment(pathFromUrl(f.getUrl())),
                 f.getPath(), f.getUrl()));
 
-        // 2) 이미지 메타 저장 (tbl_image_file) → path는 항상 "/폴더/저장파일명", stored_name은 항상 "저장파일명"
         List<Long> imageIds = new ArrayList<>();
         if (!uploaded.isEmpty()) {
             IntStream.range(0, uploaded.size()).forEach(i -> {
                 ImageFileDTO u = uploaded.get(i);
-                MultipartFile mf = images.get(i); // 같은 순서라고 가정
-
-                Optional<FileEntity> saved = storeOrMirrorImage(u, mf);
-                saved.ifPresent(fe -> imageIds.add(fe.getId()));
+                MultipartFile mf = images.get(i);
+                storeOrMirrorImage(u, mf).ifPresent(fe -> imageIds.add(fe.getId()));
             });
         }
 
         Long coverId = imageIds.isEmpty() ? null : imageIds.get(0);
         boolean hasImage = !imageIds.isEmpty();
 
-        // 3) 게시글 저장
         Post post = Post.builder()
                 .category(category)
                 .title(dto.getTitle())
@@ -86,53 +94,30 @@ public class PostService {
                 .build();
         postRepository.save(post);
 
-        // 4) post_image 링크 저장
         if (hasImage) {
             for (Long fid : imageIds) {
                 postImageRepository.save(new PostImage(post.getId(), fid));
             }
         }
-
         return post.getId();
     }
 
-    /**
-     * 업로더가 준 URL(또는 path)을 기준으로 최종 저장경로(finalPath)를 확정하고,
-     * stored_name은 finalPath의 마지막 세그먼트로 '강제'한다.
-     *
-     * 최종 저장 규칙
-     *  - URL이 있으면 URL의 path를 그대로 사용: "/{dir}/{storedName}"
-     *  - URL이 없고 path(디렉토리)만 있으면: "/{dir}/" + "타임스템프_UUID.ext" 생성
-     *  - DB에 저장:
-     *      path        = finalPath ("/dir/파일명" 전체)
-     *      stored_name = lastSegment(finalPath) (항상 저장파일명)
-     *      original    = 업로드 원본명(조회용)
-     */
     private Optional<FileEntity> storeOrMirrorImage(ImageFileDTO u, MultipartFile mf) {
         try {
-            // 1) 업로더가 반환한 URL에서 경로를 우선 파싱 (예: "/2/1756...uuid.png")
-            String urlPath = pathFromUrl(u.getUrl());        // null 가능
-            String baseDir = normalizeDir(u.getPath());      // "2" -> "/2/"
+            String urlPath = pathFromUrl(u.getUrl());
+            String baseDir = normalizeDir(u.getPath());
 
-            // 2) 최종 경로(finalPath) 결정
-            //    - URL 경로가 있으면 그대로 사용 (서버에 실제로 올라간 파일명과 일치)
-            //    - 없으면 baseDir + 랜덤파일명 으로 생성
             String finalPath;
             if (!isBlank(urlPath) && urlPath.contains("/")) {
-                finalPath = ensureLeadingSlash(urlPath);     // 이미 "/dir/name"
+                finalPath = ensureLeadingSlash(urlPath);
             } else {
                 String extHint = extensionOf(
-                        (mf != null && mf.getOriginalFilename() != null) ? mf.getOriginalFilename()
-                                : u.getFilename()
+                        (mf != null && mf.getOriginalFilename() != null) ? mf.getOriginalFilename() : u.getFilename()
                 );
-                String random = randomName(extHint);         // 예: 1756698093555_uuid.png
-                finalPath = baseDir + random;                // 예: "/2/1756...uuid.png"
+                finalPath = baseDir + randomName(extHint);
             }
 
-            // 3) stored_name을 finalPath의 마지막 세그먼트로 '강제'
             String storedName = lastSegment(finalPath);
-
-            // 4) 나머지 메타데이터
             String originalName = (mf != null && mf.getOriginalFilename() != null)
                     ? mf.getOriginalFilename()
                     : firstNonBlank(u.getFilename(), storedName);
@@ -141,9 +126,9 @@ public class PostService {
             long size = (u.getSize() != null) ? u.getSize() : (mf != null ? mf.getSize() : 0L);
 
             FileEntity fe = FileEntity.builder()
-                    .originalName(originalName)           // 원본명(조회/표시용)
-                    .storedName(storedName)               // ★ 실제 저장파일명(랜덤 보장)
-                    .path(ensureLeadingSlash(finalPath))  // ★ "/폴더/저장파일명" 형태(완전체)
+                    .originalName(originalName)
+                    .storedName(storedName)
+                    .path(ensureLeadingSlash(finalPath))
                     .size(size)
                     .extension(ext)
                     .isDeleted(false)
@@ -180,7 +165,25 @@ public class PostService {
 
     @Transactional(readOnly = true)
     public Page<PostResponseDto> getPosts(String category, Pageable pageable) {
-        return postRepository.findAll(pageable).map(PostResponseDto::new);
+        Pageable effective = pageable;
+        if (pageable.getSort() == null || pageable.getSort().isUnsorted()) {
+            effective = PageRequest.of(
+                    pageable.getPageNumber(),
+                    pageable.getPageSize(),
+                    Sort.by(Sort.Direction.DESC, "createdAt")
+            );
+        }
+
+        String normalized = normalizeCategoryName(category);
+
+        Page<Post> page;
+        if (normalized == null || normalized.isBlank()) {
+            page = postRepository.findByIsDeletedFalse(effective);
+        } else {
+            page = postRepository.findByCategory_NameAndIsDeletedFalse(normalized, effective);
+        }
+
+        return page.map(PostResponseDto::new);
     }
 
     @Transactional
@@ -189,7 +192,7 @@ public class PostService {
                 .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다. id=" + id));
 
         PostCategory newCategory = (dto.getCategoryName() != null)
-                ? requireCategoryByName(dto.getCategoryName())
+                ? requireCategoryByName(normalizeCategoryName(dto.getCategoryName()))
                 : origin.getCategory();
 
         Post changed = Post.builder()
@@ -212,6 +215,8 @@ public class PostService {
         Post origin = postRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다. id=" + id));
 
+        if (origin.isDeleted()) return;
+
         Post deleted = Post.builder()
                 .id(origin.getId())
                 .category(origin.getCategory())
@@ -227,7 +232,7 @@ public class PostService {
         postRepository.save(deleted);
     }
 
-    // ===== 유틸 =====
+
     private static String firstNonBlank(String... xs) {
         if (xs == null) return null;
         for (String x : xs) if (!isBlank(x)) return x;
@@ -238,7 +243,7 @@ public class PostService {
     private static String pathFromUrl(String url) {
         if (isBlank(url)) return null;
         try {
-            String p = URI.create(url).getPath(); // "/2/1756...uuid.png"
+            String p = URI.create(url).getPath();
             return (p == null) ? null : p;
         } catch (Exception e) {
             return null;
