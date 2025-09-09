@@ -10,10 +10,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestHeader;
 
 @FeignClient(
-        name = "user-service-users",
-        url = "http://localhost:8000/api/v1/user-service",
-        configuration = FeignClientConfig.class
-)
+        name = "user-service",
+        configuration = FeignClientConfig.class)
 public interface UserClient {
 
     @GetMapping("/users/{userId}/basic")
