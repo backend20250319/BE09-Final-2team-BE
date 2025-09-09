@@ -24,7 +24,7 @@ public class Post {
     private String title;
 
     @Lob
-    @Column(name = "content_html", nullable = false)
+    @Column(name="content_html", columnDefinition="LONGTEXT")
     private String contentHtml;
 
     @Column(name = "user_id", nullable = false)
