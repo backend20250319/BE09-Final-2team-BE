@@ -2,33 +2,71 @@ server:
   port: 0
   forward-headers-strategy: framework
 
-eureka:
-  instance:
-    hostname: localhost
-    instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
-  client:
-    register-with-eureka: true
-    fetch-registry: true
-    service-url:
-      defaultZone: http://localhost:8761/eureka
-
 spring:
-  profiles:
-    active: dev
   application:
     name: post-service
+
+  config:
+    import: optional:file:.env[.properties]
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+    open-in-view: false
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASS}
+
   servlet:
     multipart:
       enabled: true
       max-file-size: 20MB
       max-request-size: 100MB
-  jpa:
-    hibernate:
-      ddl-auto: none
-    show-sql: true
-    properties:
-      hibernate:
-        format_sql: true
+
+eureka:
+  instance:
+    prefer-ip-address: true
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      defaultZone: ${DEFAULT_ZONE}
+
+clients:
+  file-service:
+    base-url: ${FTP_SERVER_URL}
+
+ftp:
+  base-url: ${FTP_SERVER_URL}
+  file-server-url: ${FTP_SERVER_URL}
+  server: ${FTP_SERVER}
+  host: ${FTP_SERVER}
+  port: ${FTP_PORT:21}
+  username: ${FTP_USER}
+  password: ${FTP_PASS}
+  path: ${FTP_PATH:/}
+
+file:
+  public-base-url: ${FILE_PUBLIC_BASE_URL:${FTP_SERVER_URL}}
+
+post:
+  upload:
+    allowed-content-types: ${POST_UPLOAD_ALLOWED_CONTENT_TYPES:image/jpeg,image/png,image/webp,video/mp4,application/pdf}
+    max-size-bytes: ${POST_UPLOAD_MAX_SIZE_BYTES:20971520}
+    max-files: ${POST_UPLOAD_MAX_FILES:10}
+    sanitize-file-name: ${POST_UPLOAD_SANITIZE_FILE_NAME:true}
+
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: 604800000
+  refresh-expiration: 604800000
 
 springdoc:
   packages-to-scan: com.momnect.postservice
